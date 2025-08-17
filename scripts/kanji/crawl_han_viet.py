@@ -11,11 +11,11 @@ def crawl_kanji_details(kanji: str):
 
     data = OrderedDict()
     data["kanji"] = kanji
-    data["luc_thu"] = None
-    data["am_han_viet"] = []
+    data["six_principles"] = None
+    data["han_viet"] = []
 
     # ---------- LẤY LỤC THƯ ----------
-    luc_thu_val = None
+    six_principles_val = None
     label = soup.find(string=re.compile(r"Lục\s*thư\s*:"))
     if label:
         pieces = []
@@ -27,8 +27,8 @@ def crawl_kanji_details(kanji: str):
             if isinstance(node, NavigableString):
                 pieces.append(str(node))
             node = node.next_sibling
-        luc_thu_val = "".join(pieces).strip(" :\n\t")
-    data["luc_thu"] = luc_thu_val if luc_thu_val else None
+        six_principles_val = "".join(pieces).strip(" :\n\t")
+    data["six_principles"] = six_principles_val if six_principles_val else None
 
     # ---------- LẤY ÂM HÁN VIỆT ----------
     readings = []
@@ -46,8 +46,8 @@ def crawl_kanji_details(kanji: str):
         if not block:
             continue
 
-        nghia_pho_thong = []
-        nghia_trich_dan = []
+        common_meanings = []
+        cited_meanings = []
 
         # tìm các nguồn nghĩa
         for p in block.select("div.hvres-details > p.hvres-source"):
@@ -58,14 +58,14 @@ def crawl_kanji_details(kanji: str):
                 div_mean = p.find_next_sibling("div", class_="hvres-meaning")
                 if div_mean and "small" not in (div_mean.get("class") or []):
                     raw = div_mean.get_text("\n", strip=True)
-                    nghia_pho_thong = [line.strip() for line in raw.split("\n") if line.strip()]
+                    common_meanings = [line.strip() for line in raw.split("\n") if line.strip()]
 
             # --- Từ điển trích dẫn ---
             elif source_name == "Từ điển trích dẫn":
                 div_mean = p.find_next_sibling("div", class_="hvres-meaning")
                 if div_mean:
                     raw = div_mean.get_text("\n", strip=True)
-                    nghia_trich_dan = [line.strip() for line in raw.split("\n") if line.strip()]
+                    cited_meanings = [line.strip() for line in raw.split("\n") if line.strip()]
 
         # ---- TỪ GHÉP ----
         compounds = []
@@ -76,17 +76,18 @@ def crawl_kanji_details(kanji: str):
                     compounds = [a.get_text(strip=True) for a in div_comp.find_all("a")]
                 break
 
-        data["am_han_viet"].append({
-            "cach_doc": reading,
-            "nghia_pho_thong": nghia_pho_thong,
-            "nghia_trich_dan": nghia_trich_dan,
-            "tu_ghep": compounds
+        data["han_viet"].append({
+            "reading": reading,
+            "common_meanings": common_meanings,
+            "cited_meanings": cited_meanings,
+            "compounds": compounds
         })
 
     return data
-
 
 # --- Chạy thử ---
 if __name__ == "__main__":
     from pprint import pprint
     pprint(crawl_kanji_details("日"), width=120)
+
+
