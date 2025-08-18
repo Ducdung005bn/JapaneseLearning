@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup, NavigableString
 from collections import OrderedDict
 
-def crawl_kanji_details(kanji: str):
+def crawl_han_viet(kanji: str):
     url = f"https://hvdic.thivien.net/whv/{kanji}"
     resp = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
     resp.encoding = "utf-8"
@@ -34,60 +34,104 @@ def crawl_kanji_details(kanji: str):
     readings = []
     am_label = soup.find(string=re.compile(r"Âm\s*Hán\s*Việt\s*:"))
     if am_label:
-        for sp in am_label.parent.select('span.hvres-goto-link[data-goto-idx]'):
-            idx = sp.get("data-goto-idx", "").strip()
-            reading = sp.get_text(strip=True)
-            if idx and reading:
-                readings.append((idx, reading))
+        parent = am_label.parent
+        content = ""
+        for elem in parent.children:
+            if elem == am_label:
+                continue
+            if getattr(elem, 'name', None) == 'br':
+                break
+            content += str(elem)
+
+        sub_soup = BeautifulSoup(content, "html.parser")
+        for tag in sub_soup.find_all(['span', 'a']):
+            reading = tag.get_text(strip=True)
+            if reading:
+                readings.append(reading)
 
     # ---------- GHÉP VỚI NGHĨA & TỪ GHÉP ----------
-    for idx, reading in readings:
+    for i, reading in enumerate(readings):
+        idx = i + 1  # data-hvres-idx bắt đầu từ 1
         block = soup.select_one(f'div.hvres[data-hvres-idx="{idx}"]')
-        if not block:
-            continue
 
+        # Mặc định các nghĩa rỗng
         common_meanings = []
         cited_meanings = []
-
-        # tìm các nguồn nghĩa
-        for p in block.select("div.hvres-details > p.hvres-source"):
-            source_name = p.get_text(strip=True)
-
-            # --- Từ điển phổ thông ---
-            if source_name == "Từ điển phổ thông":
-                div_mean = p.find_next_sibling("div", class_="hvres-meaning")
-                if div_mean and "small" not in (div_mean.get("class") or []):
-                    raw = div_mean.get_text("\n", strip=True)
-                    common_meanings = [line.strip() for line in raw.split("\n") if line.strip()]
-
-            # --- Từ điển trích dẫn ---
-            elif source_name == "Từ điển trích dẫn":
-                div_mean = p.find_next_sibling("div", class_="hvres-meaning")
-                if div_mean:
-                    raw = div_mean.get_text("\n", strip=True)
-                    cited_meanings = [line.strip() for line in raw.split("\n") if line.strip()]
-
-        # ---- TỪ GHÉP ----
+        thieu_chuu_meanings = []
+        tran_van_chanh_meanings = []
+        nguyen_quoc_hung_meanings = []
         compounds = []
-        for p in block.select("div.hvres-details > p.hvres-source"):
-            if "Từ ghép" in p.get_text(strip=True):
-                div_comp = p.find_next_sibling("div", class_="hvres-meaning")
-                if div_comp and "small" in (div_comp.get("class") or []):
-                    compounds = [a.get_text(strip=True) for a in div_comp.find_all("a")]
-                break
 
-        data["han_viet"].append({
-            "reading": reading,
-            "common_meanings": common_meanings,
-            "cited_meanings": cited_meanings,
-            "compounds": compounds
-        })
+        if block:
+            # Lấy nghĩa nếu block tồn tại
+            for p in block.select("div.hvres-details > p.hvres-source"):
+                source_name = p.get_text(strip=True)
+                div_mean = p.find_next_sibling("div", class_="hvres-meaning")
+                if not div_mean:
+                    continue
+
+                raw = div_mean.get_text("\n", strip=True)
+                meanings = [line.strip() for line in raw.split("\n") if line.strip()]
+
+                if source_name == "Từ điển phổ thông":
+                    common_meanings.extend(meanings)
+                elif source_name == "Từ điển trích dẫn":
+                    cited_meanings.extend(meanings)
+                elif source_name == "Từ điển Thiều Chửu":
+                    thieu_chuu_meanings.extend(meanings)
+                elif source_name == "Từ điển Trần Văn Chánh":
+                    tran_van_chanh_meanings.extend(meanings)
+                elif source_name == "Từ điển Nguyễn Quốc Hùng":
+                    nguyen_quoc_hung_meanings.extend(meanings)
+
+            # Lấy từ ghép nếu block tồn tại
+            for p in block.select("div.hvres-details > p.hvres-source"):
+                if "Từ ghép" in p.get_text(strip=True):
+                    div_comp = p.find_next_sibling("div", class_="hvres-meaning")
+                    if div_comp and "small" in (div_comp.get("class") or []):
+                        compounds = [a.get_text(strip=True) for a in div_comp.find_all("a")]
+                    break
+
+        # Append reading ngay cả khi không có block
+        data["han_viet"].append(OrderedDict([
+            ("reading", reading),
+            ("common_meanings", common_meanings),
+            ("cited_meanings", cited_meanings),
+            ("thieu_chuu_meanings", thieu_chuu_meanings),
+            ("tran_van_chanh_meanings", tran_van_chanh_meanings),
+            ("nguyen_quoc_hung_meanings", nguyen_quoc_hung_meanings),
+            ("compounds", compounds)
+        ]))
+
 
     return data
 
-# --- Chạy thử ---
 if __name__ == "__main__":
-    from pprint import pprint
-    pprint(crawl_kanji_details("日"), width=120)
+    import json
+    import time
+    import random
 
+    kanji_data = []
+
+    # Đọc danh sách kanji
+    with open(r"C:\Users\Admin\Documents\JapaneseLearning\scripts\kanji\kanji_list.txt", "r", encoding="utf-8") as f:
+        kanji_list = [line.strip() for line in f if line.strip()]
+
+    # Crawl từng kanji
+    for kanji in kanji_list:
+        try:
+            data = crawl_han_viet(kanji)
+            kanji_data.append(data)
+            print(f"Crawled {kanji}")
+        except Exception as e:
+            print(f"Error crawling {kanji}: {e}")
+
+        # Delay ngẫu nhiên từ 1 đến 3 giây để tránh bị ban
+        time.sleep(random.uniform(1, 3))
+
+    # Lưu ra JSON
+    with open("han_viet_data.json", "w", encoding="utf-8") as f:
+        json.dump(kanji_data, f, ensure_ascii=False, indent=2)
+
+    print(f"Crawled {len(kanji_data)} kanji. Saved to han_viet_data.json")
 

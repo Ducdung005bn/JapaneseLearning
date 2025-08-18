@@ -1,8 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-import time
-import re
 
 def crawl_kanji_kanshudo(kanji: str):
     url = f"https://www.kanshudo.com/kanji/{kanji}"
@@ -13,7 +11,6 @@ def crawl_kanji_kanshudo(kanji: str):
     driver = webdriver.Chrome(options=options)
     
     driver.get(url)
-    time.sleep(1)
     
     data = {"kanji": kanji}
     
@@ -76,7 +73,7 @@ def crawl_kanji_kanshudo(kanji: str):
     
     # --- Components ---
     def parse_components_tree(div):
-        # Lấy các nodes theo thứ tự childNodes với symbol ⿰⿱⿻ và <a>
+        # Lấy các nodes theo thứ tự childNodes với symbol và <a>
         js = js = """
             let div = arguments[0];
             let res = [];
@@ -84,7 +81,7 @@ def crawl_kanji_kanshudo(kanji: str):
                 if(n.nodeType === Node.TEXT_NODE){
                     let parts = n.textContent.trim().split(/\\s+/);
                     for (let p of parts){
-                        if(['⿰','⿱','⿻'].includes(p)) res.push({type:'symbol', text:p});
+                        if(['⿰','⿱','⿲','⿳','⿴','⿵','⿶','⿷','⿸','⿹','⿺','⿻'].includes(p)) res.push({type:'symbol', text:p});
                     }
                 } else if(n.nodeType === Node.ELEMENT_NODE){
                     if(n.tagName.toLowerCase() === 'a'){
@@ -101,14 +98,14 @@ def crawl_kanji_kanshudo(kanji: str):
 
         nodes = driver.execute_script(js, div)
 
-        # Build tree chính xác theo ⿰⿱⿻ với 2 phần con mỗi symbol
+        # Build tree chính xác theo với 2 phần con mỗi symbol
         def build_tree(nodes, idx=0):
             if idx >= len(nodes):
                 return [], idx
             node = nodes[idx]
             if node['type'] == 'leaf':
                 return node['text'], idx + 1
-            # node là symbol ⿰⿱⿻
+            # node là symbol
             idx += 1
             children = []
             while len(children) < 2 and idx < len(nodes):
@@ -137,6 +134,6 @@ def crawl_kanji_kanshudo(kanji: str):
 # --- Test ---
 if __name__ == "__main__":
     from pprint import pprint
-    kanji_info = crawl_kanji_kanshudo("生")
+    kanji_info = crawl_kanji_kanshudo("路")
     pprint(kanji_info, width=150)
 
