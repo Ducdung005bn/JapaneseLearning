@@ -16,11 +16,12 @@ def crawl_kanji_kanshudo(kanji: str):
     
     # --- Strokes ---
     try:
-        span_strokes = driver.find_element(By.XPATH, "//span[contains(text(),'Strokes')]")
+        span_strokes = driver.find_element(By.XPATH, "//span[contains(text(),'Stroke')]")
         strokes = driver.execute_script("return arguments[0].nextSibling.nodeValue", span_strokes)
         data["strokes"] = strokes.strip() if strokes else None
-    except:
+    except Exception as e:
         data["strokes"] = None
+
     
     # --- JLPT ---
     try:
@@ -40,12 +41,10 @@ def crawl_kanji_kanshudo(kanji: str):
         data["on_readings"] = []
     
     # --- Kun readings ---
-    # --- Kun readings ---
     kun_readings = []
     try:
         kun_links = driver.find_elements(By.XPATH, "//div[@id='help_kun']/following-sibling::a")
         for a in kun_links:
-            # Lấy toàn bộ node con
             parts = driver.execute_script("""
                 let a = arguments[0];
                 let res = [];
@@ -58,14 +57,9 @@ def crawl_kanji_kanshudo(kanji: str):
                 }
                 return res;
             """, a)
-            # Nối với dấu chấm để phân tách
             hiragana = ".".join([p.strip() for p in parts if p.strip()])
             
-            # Lấy nghĩa ngay sau thẻ <a>
-            meaning = driver.execute_script("return arguments[0].nextSibling.nodeValue", a)
-            if meaning:
-                meaning = meaning.strip()
-            kun_readings.append({"hiragana": hiragana, "meaning": meaning})
+            kun_readings.append(hiragana)
         data["kun_readings"] = kun_readings
     except:
         data["kun_readings"] = []
@@ -73,7 +67,6 @@ def crawl_kanji_kanshudo(kanji: str):
     
     # --- Components ---
     def parse_components_tree(div):
-        # Lấy các nodes theo thứ tự childNodes với symbol và <a>
         js = js = """
             let div = arguments[0];
             let res = [];
@@ -98,14 +91,12 @@ def crawl_kanji_kanshudo(kanji: str):
 
         nodes = driver.execute_script(js, div)
 
-        # Build tree chính xác theo với 2 phần con mỗi symbol
         def build_tree(nodes, idx=0):
             if idx >= len(nodes):
                 return [], idx
             node = nodes[idx]
             if node['type'] == 'leaf':
                 return node['text'], idx + 1
-            # node là symbol
             idx += 1
             children = []
             while len(children) < 2 and idx < len(nodes):
@@ -134,6 +125,25 @@ def crawl_kanji_kanshudo(kanji: str):
 # --- Test ---
 if __name__ == "__main__":
     from pprint import pprint
-    kanji_info = crawl_kanji_kanshudo("路")
-    pprint(kanji_info, width=150)
+
+    kanji_file = r"C:\Users\Admin\Documents\JapaneseLearning\scripts\kanji\kanji_list.txt"
+    
+    with open(kanji_file, "r", encoding="utf-8") as f:
+        kanji_list = [line.strip() for line in f if line.strip()]
+
+    all_kanji_data = []
+    for kanji in kanji_list:
+        print(f"Crawled {kanji}")
+        try:
+            info = crawl_kanji_kanshudo(kanji)
+            all_kanji_data.append(info)
+        except Exception as e:
+            print(f"Error crawling {kanji}: {e}")
+
+    import json
+    output_file = "kanji_information_data.json"
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(all_kanji_data, f, ensure_ascii=False, indent=2)
+
+    print(f"Crawled {len(all_kanji_data)} kanji. Save to {output_file}")
 
