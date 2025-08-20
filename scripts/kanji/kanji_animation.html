@@ -2,12 +2,12 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Animate Kanji Stroke Demo</title>
+<title>Animate Kanji Stroke</title>
 <style>
   svg {
     border: 1px solid #ccc;
-    width: 200px;
-    height: 200px;
+    width: 500px;
+    height: 500px;
   }
   path {
     stroke: black;
@@ -19,8 +19,8 @@
 <body>
 
 <h2>Animation vẽ nét Kanji</h2>
-<!--đơn vị logic không phải pixel; 100 theo x = 200px; -->
-<svg viewBox="0 0 120 120">
+<!--đơn vị logic không phải pixel -->
+<svg viewBox="0 0 109 109">
 <g id="kvg:08b70" kvg:element="議">
 	<g id="kvg:08b70-g1" kvg:element="言" kvg:position="left" kvg:radical="general">
 		<path id="kvg:08b70-s1" kvg:type="㇔" d="M23.75,15.5c2.38,1.46,6.15,5.98,6.75,8.25"/>
@@ -73,7 +73,6 @@
 		</g>
 	</g>
 </g>
-</svg>
 
 <script>
 const svg = document.querySelector("svg");  // hoặc id của SVG
