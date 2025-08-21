@@ -1,17 +1,17 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="vi">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Kanji Preprocess — DP + Resample with Peak Insertion</title>
+<title>Kanji — Endpoints + Peaks Only (Canvas)</title>
 <style>
   :root{--bg:#0b0d10;--panel:#141820;--ink:#e5e7eb}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.4 system-ui,Segoe UI,Roboto,Arial}
-  .wrap{max-width:1100px;margin:18px auto;padding:12px}
-  .card{background:var(--panel);border-radius:12px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,.4)}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,Segoe UI,Roboto,Arial}
+  .wrap{max-width:1100px;margin:16px auto;padding:12px}
+  .card{background:var(--panel);border-radius:10px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,.4)}
   canvas{background:#fff;border-radius:8px;display:block;width:420px;height:420px;touch-action:none}
   .toolbar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
-  button,input,textarea,select{font:14px}
+  button,input,textarea,select{font:13px}
   button{background:#1f2937;color:var(--ink);border-radius:8px;padding:8px 12px;border:1px solid #374151;cursor:pointer}
   .danger{background:#7f1d1d}
   label{font-size:13px;color:#cbd5e1;display:flex;align-items:center;gap:8px}
@@ -24,7 +24,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h2>Kanji Preprocess — DP + Resample with Peak Insertion</h2>
+  <h2>Kanji Recognition</h2>
   <div class="card" style="display:flex;gap:16px">
     <div>
       <canvas id="canvas" width="840" height="840" aria-label="drawing canvas"></canvas>
@@ -35,26 +35,8 @@
         <button id="recognize">Recognize & Export</button>
 
         <label class="small">ε (DP)
-          <input id="eps" type="range" min="0" max="0.1" step="0.01" value="0.05" style="width:140px">
-          <span id="epsVal">0.003</span>
-        </label>
-
-        <label class="small">N_base
-          <input id="Nbase" type="range" min="8" max="128" step="1" value="48" style="width:100px">
-          <span id="NVal">48</span>
-        </label>
-
-        <label class="small">N_min
-          <input id="Nmin" type="number" min="1" max="64" value="8" style="width:64px">
-        </label>
-
-        <label class="small">N_max
-          <input id="Nmax" type="number" min="8" max="512" value="256" style="width:72px">
-        </label>
-
-        <label class="small">peakMult (threshold)
-          <input id="peakMult" type="range" min="0" max="3" step="0.1" value="1.0" style="width:100px">
-          <span id="peakVal">1.0</span>
+          <input id="eps" type="range" min="0.1" max="0.3" step="0.05" value="0.2" style="width:160px">
+          <span id="epsVal">0.005</span>
         </label>
       </div>
 
@@ -65,19 +47,19 @@
         <div class="col" style="min-width:260px">
           <label class="small">viewBox size (KanjiVG): <input id="vb" value="109" style="width:72px"></label>
           <button id="importPath">Import Path</button>
-          <div class="small" id="stats">Strokes: 0 | Raw pts: 0 | Simplified pts: 0</div>
+          <div class="small" id="stats">Strokes: 0 | Raw pts: 0 | Peaks kept: 0</div>
         </div>
       </div>
     </div>
 
     <div style="flex:1;min-width:300px">
-      <div class="small">Output (normalized resampled strokes)</div>
-      <div id="output">Press Recognize to normalize & export JSON of resampled strokes (coords in [0,1]).</div>
+      <div class="small">Output (normalized strokes with only endpoints + peaks)</div>
+      <div id="output">Press Recognize to export JSON of strokes (coords in [0,1]).</div>
       <div style="height:12px"></div>
       <div class="small">Notes:
         <ul>
-          <li>Pipeline: flatten → normalize all → DP → detect peaks → compute N per stroke by length → resample evenly → insert peaks & resort.</li>
-          <li>Peaks are <b>forcibly inserted</b> into resampled points so they won't be lost.</li>
+          <li>Pipeline: flatten Bézier → sample → normalize → DP → detect peaks → keep {start, peaks, end} per stroke.</li>
+          <li>Peaks are projected to the DP polyline and sorted along stroke direction.</li>
         </ul>
       </div>
     </div>
@@ -97,50 +79,41 @@
   ctx.scale(DPR, DPR);
 
   // State (raw in pixel coords)
-  let raw = []; // strokes: array of [{x,y},...]
-  let simplified = []; // normalized dp strokes [0..1]
-  let resampled = [];  // normalized resampled (with peaks)
+  let raw = []; // array of strokes, each stroke is [{x,y},...]
+  let dpStrokes = [];
+  let processed = []; // strokes after: only endpoints+peaks (normalized)
   let curStroke = null, drawing = false;
 
   // UI
   const epsEl = document.getElementById('eps'), epsVal = document.getElementById('epsVal');
-  const NbaseEl = document.getElementById('Nbase'), NVal = document.getElementById('NVal');
-  const NminEl = document.getElementById('Nmin'), NmaxEl = document.getElementById('Nmax');
-  const peakMultEl = document.getElementById('peakMult'), peakVal = document.getElementById('peakVal');
   const statsEl = document.getElementById('stats'), outputEl = document.getElementById('output');
+  epsVal.textContent = epsEl.value; 
 
-  epsVal.textContent = epsEl.value;
-  NVal.textContent = NbaseEl.value;
-  peakVal.textContent = peakMultEl.value;
-
-  // Helpers
   const copyP = p => ({x: p.x, y: p.y});
   const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
-  function normToCanvas(p){ return { x: p.x * CSS_SIZE, y: p.y * CSS_SIZE }; }
+  const normToCanvas = p => ({ x: p.x * CSS_SIZE, y: p.y * CSS_SIZE });
 
-  // SVG sampling
+  // Sample SVG path into polyline by using an off-DOM path
   function sampleSvgPath(dStr, samples = 256, viewBoxSize = 109){
-    const svgNS = "http://www.w3.org/2000/svg";
-    const svg = document.createElementNS(svgNS, "svg");
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', `0 0 ${viewBoxSize} ${viewBoxSize}`);
-    const path = document.createElementNS(svgNS, "path");
+    const path = document.createElementNS(ns, 'path');
     path.setAttribute('d', dStr);
-    path.setAttribute('stroke','none');
     svg.appendChild(path);
-    path.style.visibility = 'hidden';
     document.body.appendChild(svg);
     const L = path.getTotalLength();
     const pts = [];
     for(let i=0;i<samples;i++){
       const t = i/(samples-1);
       const p = path.getPointAtLength(t*L);
-      pts.push({ x: p.x * (CSS_SIZE / viewBoxSize), y: p.y * (CSS_SIZE / viewBoxSize) });
+      pts.push({ x: p.x * (CSS_SIZE/viewBoxSize), y: p.y * (CSS_SIZE/viewBoxSize) });
     }
     document.body.removeChild(svg);
     return pts;
   }
 
-  // Normalize all strokes (pixel -> normalized [0,1] centered at 0.5)
+  // Normalize all strokes to [0,1] with center at (0.5,0.5)
   function normalizeAll(strokes){
     const pts = [];
     for(const s of strokes) for(const p of s) pts.push(p);
@@ -155,7 +128,7 @@
     return strokes.map(st => st.map(p => ({ x: (p.x - minX) * scale + tx, y: (p.y - minY) * scale + ty })));
   }
 
-  // Douglas-Peucker (normalized coords)
+  // Douglas-Peucker
   function perpDist(pt,a,b){
     const vx = b.x - a.x, vy = b.y - a.y;
     const wx = pt.x - a.x, wy = pt.y - a.y;
@@ -178,15 +151,11 @@
       const right = douglasPeucker(points.slice(idx), eps);
       return left.slice(0,-1).concat(right);
     } else {
-      return [a, b];
+      return [a,b];
     }
   }
 
-  // length & curvature (normalized)
-  function strokeLength(points){
-    let L = 0; for(let i=1;i<points.length;i++) L += dist(points[i], points[i-1]);
-    return L;
-  }
+  // Curvature
   function computeCurvature(points){
     const n = points.length;
     if(n < 3) return Array(n).fill(0);
@@ -205,47 +174,9 @@
     curv[0] = curv[1] || 0; curv[n-1] = curv[n-2] || 0;
     return curv;
   }
-  function meanStd(arr){
-    if(arr.length===0) return {mean:0,std:0};
-    const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
-    const varr = arr.reduce((s,v)=> s + (v-mean)*(v-mean), 0)/arr.length;
-    return {mean, std: Math.sqrt(varr)};
-  }
+  function meanStd(arr){ if(arr.length===0) return {mean:0,std:0}; const mean = arr.reduce((a,b)=>a+b,0)/arr.length; const varr = arr.reduce((s,v)=> s + (v-mean)*(v-mean), 0)/arr.length; return {mean, std: Math.sqrt(varr)}; }
 
-  // compute N per stroke by length (by_mean)
-  function computeNsByLength(lengths, opts){
-    const N_base = opts.N_base || 48, N_min = opts.N_min || 8, N_max = opts.N_max || 256;
-    const mean = lengths.reduce((a,b)=>a+b,0) / Math.max(1, lengths.length);
-    return lengths.map(L => {
-      let n = Math.round(N_base * (L / Math.max(1e-9, mean)));
-      n = Math.max(N_min, Math.min(N_max, n));
-      return n;
-    });
-  }
-
-  // resample uniformly by arc-length to exactly N points
-  function resamplePolyline(points, N){
-    if(!points || points.length === 0) return Array.from({length:N}, ()=>({x:0.5,y:0.5}));
-    const seg = [];
-    for(let i=1;i<points.length;i++) seg.push(dist(points[i], points[i-1]));
-    const total = seg.reduce((a,b)=>a+b,0);
-    if(total === 0) return Array.from({length:N}, ()=> ({x:points[0].x, y:points[0].y}));
-    const step = total / (N-1);
-    const res = [];
-    let curSeg = 0, acc = 0;
-    for(let k=0;k<N;k++){
-      const target = k * step;
-      while(curSeg < seg.length && acc + seg[curSeg] < target){ acc += seg[curSeg]; curSeg++; }
-      if(curSeg >= seg.length){ res.push({x: points[points.length-1].x, y: points[points.length-1].y}); continue; }
-      const p0 = points[curSeg], p1 = points[curSeg+1];
-      const remain = target - acc;
-      const u = (seg[curSeg] === 0) ? 0 : (remain / seg[curSeg]);
-      res.push({ x: p0.x + (p1.x - p0.x) * u, y: p0.y + (p1.y - p0.y) * u });
-    }
-    return res;
-  }
-
-  // project point onto polyline -> returns distance along polyline (0..totalLen)
+  // project point onto polyline to get distance along polyline
   function projectPointToPolyline(point, poly){
     let best = {d: Infinity, segIdx: 0, t: 0, distOnPath: 0};
     let accLen = 0;
@@ -258,194 +189,469 @@
       t = Math.max(0, Math.min(1, t));
       const px = a.x + t*vx, py = a.y + t*vy;
       const d = Math.hypot(point.x - px, point.y - py);
-      // compute distance along path to this projection
-      // need seg length
-      let segLen = Math.hypot(vx, vy);
+      const segLen = Math.hypot(vx, vy);
       const distOnPath = accLen + t * segLen;
       if(d < best.d){ best = {d, segIdx:i, t, distOnPath}; }
       accLen += segLen;
     }
-    return best; // distOnPath is key
+    return best;
   }
 
-  // detect curvature peaks indices (normalized coords)
-  function detectPeaks(points, mult = 1.0){
+  // detect peaks indices via curvature threshold
+  function detectPeaks(points){
     const curv = computeCurvature(points);
-    const {mean, std} = meanStd(curv);
     const peaks = [];
     for(let i=1;i<curv.length-1;i++){
-      if(curv[i] > mult * std) peaks.push(i);
+      if(curv[i] > 0) peaks.push(i);
     }
     return peaks;
   }
 
-  // Insert peaks into resampled list forcibly: convert peak indices to coordinates,
-  // add them to resampled points, then sort all points along DP stroke's arc-length.
-  function insertPeaksIntoResampled(dpStroke, resampledPts, peakIndices){
-    if(!peakIndices || peakIndices.length === 0) return resampledPts;
-    // convert peak indices to coordinates on dpStroke
-    const peaks = peakIndices.map(idx => dpStroke[idx]);
-    // for each point (resampled + peaks) compute its path distance along dpStroke
-    const all = resampledPts.concat(peaks);
-    // compute cumulative lengths of dpStroke for projection
-    // project each point to dpStroke to get distOnPath
-    const projected = all.map(p => {
-      const pr = projectPointToPolyline(p, dpStroke);
-      return {p, dist: pr.distOnPath};
-    });
-    // sort by dist
-    projected.sort((a,b) => a.dist - b.dist);
-    // deduplicate very-close points (epsilon)
-    const eps = 1e-4;
-    const unique = [];
-    for(const item of projected){
-      const last = unique[unique.length-1];
-      if(!last || Math.hypot(last.x - item.p.x, last.y - item.p.y) > eps){
-        unique.push({x: item.p.x, y: item.p.y});
-      }
-    }
-    return unique;
-  }
-
-  // Master pipeline: normalize -> DP -> compute Ns -> detect peaks -> resample -> insert peaks
+  // MASTER: process pipeline and produce strokes where each stroke contains only start + peaks + end
   function processPipeline(){
-    // 1. normalize raw
+    // normalize raw
     const norm = normalizeAll(raw);
-    // 2. dp
+    // dp
     const eps = parseFloat(epsEl.value);
-    const dpStrokes = norm.map(st => douglasPeucker(st, eps));
-    // 3. lengths
-    const lengths = dpStrokes.map(st => strokeLength(st));
-    const N_base = parseInt(NbaseEl.value,10);
-    const N_min = Math.max(1, parseInt(NminEl.value,10));
-    const N_max = Math.max(N_min, parseInt(NmaxEl.value,10));
-    let Ns = computeNsByLength(lengths, {N_base, N_min, N_max});
-    // 4. detect peaks and force include
-    const peakMult = parseFloat(peakMultEl.value);
-    const peaksByStroke = dpStrokes.map(st => detectPeaks(st, peakMult));
-    // add peaks count to Ns to ensure we have enough points
-    for(let i=0;i<Ns.length;i++){ Ns[i] = Math.max(Ns[i], Ns[i] + (peaksByStroke[i]||[]).length); }
-    // 5. resample and insert peaks
-    const res = [];
-    for(let i=0;i<dpStrokes.length;i++){
-      const dp = dpStrokes[i];
-      const Ni = Ns[i];
-      const baseRes = resamplePolyline(dp, Ni);
-      const withPeaks = insertPeaksIntoResampled(dp, baseRes, peaksByStroke[i]);
-      // ensure we still have at least Ni points (if peaks dedup caused fewer, resample to Ni first then insert)
-      let final;
-      if(withPeaks.length >= Ni) final = withPeaks;
-      else {
-        // resample to Ni and then forcibly add peaks and resort
-        const more = resamplePolyline(dp, Ni);
-        final = insertPeaksIntoResampled(dp, more, peaksByStroke[i]);
+    dpStrokes = norm.map(st => douglasPeucker(st, eps));
+
+    processed = [];
+    let totalPeaks = 0;
+
+    for(const st of dpStrokes){
+      if(!st || st.length === 0) { processed.push([]); continue; }
+      // detect peaks on DP stroke
+      const pkIdx = detectPeaks(st);
+      totalPeaks += pkIdx.length;
+      // collect start, peak points, end
+      const endpoints = [st[0]];
+      const peaks = pkIdx.map(i => st[i]);
+      const last = st[st.length-1];
+      // merge
+      const all = endpoints.concat(peaks).concat([last]);
+      // project each to dp stroke and sort by distance along path
+      const projected = all.map(p => ({p, d: projectPointToPolyline(p, st).distOnPath}));
+      projected.sort((a,b)=>a.d - b.d);
+      // deduplicate (very close points)
+      const uniq = [];
+      const epsDedup = 1e-4;
+      for(const it of projected){
+        const p = it.p;
+        const lastu = uniq[uniq.length-1];
+        if(!lastu || Math.hypot(lastu.x - p.x, lastu.y - p.y) > epsDedup) uniq.push({x: +p.x.toFixed(6), y: +p.y.toFixed(6)});
       }
-      res.push(final);
+      processed.push(uniq);
     }
 
-    simplified = dpStrokes;
-    resampled = res;
+    // update UI
     drawAll();
     const rawPts = raw.reduce((a,b)=>a+b.length,0);
-    const simpPts = simplified.reduce((a,b)=>a+b.length,0);
-    statsEl.textContent = `Strokes: ${raw.length} | Raw pts: ${rawPts} | Simplified pts: ${simpPts}`;
+    statsEl.textContent = `Strokes: ${raw.length} | Raw pts: ${rawPts} | Peaks kept: ${totalPeaks}`;
   }
 
-  // draw: raw strokes (pixel), simplified+resampled (normalized -> map to canvas)
+  // draw helper
   function drawAll(){
     ctx.clearRect(0,0,CSS_SIZE,CSS_SIZE);
-    // raw strokes
+    // raw strokes (pixel)
     ctx.lineWidth = 4; ctx.lineCap='round'; ctx.lineJoin='round';
     ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-    for(const st of raw){
-      if(!st || st.length<2) continue;
-      ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y);
-      for(let i=1;i<st.length;i++) ctx.lineTo(st[i].x, st[i].y);
-      ctx.stroke();
-    }
-    // simplified (dashed red) from normalized
-    if(simplified && simplified.length){
+    for(const st of raw){ if(!st||st.length<2) continue; ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y); for(let i=1;i<st.length;i++) ctx.lineTo(st[i].x, st[i].y); ctx.stroke(); }
+
+    // dp strokes (red dashed)
+    if(dpStrokes && dpStrokes.length){
       ctx.setLineDash([6,6]); ctx.lineWidth = 2; ctx.strokeStyle = '#ef4444';
-      for(const st of simplified){
-        if(!st || st.length<2) continue;
-        ctx.beginPath(); const p0 = normToCanvas(st[0]); ctx.moveTo(p0.x, p0.y);
-        for(let i=1;i<st.length;i++){ const p = normToCanvas(st[i]); ctx.lineTo(p.x, p.y); }
-        ctx.stroke();
-      }
+      for(const st of dpStrokes){ if(!st||st.length<2) continue; ctx.beginPath(); const p0 = normToCanvas(st[0]); ctx.moveTo(p0.x,p0.y); for(let i=1;i<st.length;i++){ const p = normToCanvas(st[i]); ctx.lineTo(p.x,p.y); } ctx.stroke(); }
       ctx.setLineDash([]);
     }
-    // resampled (blue) and peaks (yellow outline)
-    if(resampled && resampled.length){
-      ctx.fillStyle = '#1e40af';
-      for(const set of resampled){
-        if(!set) continue;
-        for(const p of set){
-          const q = normToCanvas(p);
-          ctx.beginPath(); ctx.arc(q.x,q.y,4,0,Math.PI*2); ctx.fill();
-        }
-      }
-      // peaks: compute from simplified and draw outline
-      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2;
-      for(const st of simplified){
-        const pk = detectPeaks(st, parseFloat(peakMultEl.value));
-        for(const idx of pk){
-          const q = normToCanvas(st[idx]);
-          ctx.beginPath(); ctx.arc(q.x,q.y,6,0,Math.PI*2); ctx.stroke();
-        }
-      }
-    }
-    // current stroke live (pixel)
-    if(curStroke && curStroke.length){
-      ctx.lineWidth = 4; ctx.strokeStyle = '#111';
-      ctx.beginPath(); ctx.moveTo(curStroke[0].x, curStroke[0].y);
-      for(let i=1;i<curStroke.length;i++) ctx.lineTo(curStroke[i].x, curStroke[i].y);
-      ctx.stroke();
-    }
+
+    // processed points (blue circles)
+    ctx.fillStyle = '#1e40af';
+    for(const st of processed){ if(!st) continue; for(const p of st){ const q = normToCanvas(p); ctx.beginPath(); ctx.arc(q.x,q.y,5,0,Math.PI*2); ctx.fill(); } }
+
+    // outline peaks (gold)
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2;
+    for(const st of processed){ if(!st) continue; for(const p of st){ const q = normToCanvas(p); ctx.beginPath(); ctx.arc(q.x,q.y,8,0,Math.PI*2); ctx.stroke(); } }
+
+    // current stroke live
+    if(curStroke && curStroke.length){ ctx.lineWidth = 4; ctx.strokeStyle = '#111'; ctx.beginPath(); ctx.moveTo(curStroke[0].x, curStroke[0].y); for(let i=1;i<curStroke.length;i++) ctx.lineTo(curStroke[i].x, curStroke[i].y); ctx.stroke(); }
   }
 
   // Input handling
   function pagePt(e){ const r = canvas.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x: p.clientX - r.left, y: p.clientY - r.top }; }
-  canvas.addEventListener('mousedown', e => { e.preventDefault(); drawing = true; curStroke = [ pagePt(e) ]; drawAll(); });
-  window.addEventListener('mousemove', e => { if(!drawing) return; const p = pagePt(e); const last = curStroke[curStroke.length-1]; if(!last || dist(last,p) > 0.5) curStroke.push(p); drawAll(); });
-  window.addEventListener('mouseup', e => { if(!drawing) return; drawing=false; if(curStroke && curStroke.length>1){ raw.push(curStroke.map(copyP)); processPipeline(); } curStroke=null; drawAll(); });
-  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; curStroke = [ pagePt(e) ]; drawAll(); });
-  canvas.addEventListener('touchmove', e => { e.preventDefault(); if(!drawing) return; const p = pagePt(e); const last = curStroke[curStroke.length-1]; if(!last || dist(last,p) > 0.5) curStroke.push(p); drawAll(); });
-  canvas.addEventListener('touchend', e => { e.preventDefault(); if(!drawing) return; drawing=false; if(curStroke && curStroke.length>1){ raw.push(curStroke.map(copyP)); processPipeline(); } curStroke=null; drawAll(); });
+  canvas.addEventListener('mousedown', e=>{ e.preventDefault(); drawing=true; curStroke=[pagePt(e)]; drawAll(); });
+  window.addEventListener('mousemove', e=>{ if(!drawing) return; const p=pagePt(e); const last=curStroke[curStroke.length-1]; if(!last || dist(last,p)>0.7) curStroke.push(p); drawAll(); });
+  window.addEventListener('mouseup', e=>{ if(!drawing) return; drawing=false; if(curStroke && curStroke.length>1){ raw.push(curStroke.map(copyP)); processPipeline(); } curStroke=null; drawAll(); });
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); drawing=true; curStroke=[pagePt(e)]; drawAll(); });
+  canvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!drawing) return; const p=pagePt(e); const last=curStroke[curStroke.length-1]; if(!last||dist(last,p)>0.7) curStroke.push(p); drawAll(); });
+  canvas.addEventListener('touchend', e=>{ e.preventDefault(); if(!drawing) return; drawing=false; if(curStroke && curStroke.length>1){ raw.push(curStroke.map(copyP)); processPipeline(); } curStroke=null; drawAll(); });
 
   // import path
   document.getElementById('importPath').addEventListener('click', ()=>{
-    const d = document.getElementById('svgpath').value.trim();
+    let d = document.getElementById('svgpath').value.trim();
     if(!d){ alert('Paste path d'); return; }
+
     const viewBox = parseFloat(document.getElementById('vb').value) || 109;
-    try{
-      const pts = sampleSvgPath(d, 256, viewBox);
-      raw.push(pts);
-      document.getElementById('svgpath').value = '';
+
+    try {
+      // Đảm bảo bắt đầu bằng M
+      if (d[0] !== 'M') d = 'M' + d;
+      
+      // Tách theo 'M' nhưng giữ lại để tái tạo path
+      const segments = d.split(/(?=M)/g).filter(seg => seg.trim().length > 0);
+
+      segments.forEach(seg => {
+        const pts = sampleSvgPath(seg.trim(), 300, viewBox);
+        raw.push(pts);
+      });
+
+      document.getElementById('svgpath').value='';
       processPipeline();
-    }catch(err){ alert('Parse error: ' + err); }
+
+    } catch(err) { 
+      alert('Parse error: '+err); 
+    }
   });
 
+  //========================================
+  /**
+   * Chuyển SVG path d trực tiếp thành JSON strokes (start+peaks+end)
+   * @param {string} d SVG path
+   * @param {number} viewBox size của viewBox, ví dụ 109
+   * @param {number} eps Douglas-Peucker epsilon
+   * @returns {Array} JSON strokes [[ [x,y], [x,y], ... ], ...]
+   */
+  function svgPathToJson(d, viewBox = 109, eps = epsVal) {
+    if (!d || d.trim() === '') return [];
+
+    // đảm bảo path bắt đầu bằng M
+    if (d[0] !== 'M') d = 'M' + d;
+
+    // tách các segment theo M
+    const segments = d.split(/(?=M)/g).filter(seg => seg.trim().length > 0);
+    const raw = [];
+
+    for (const seg of segments) {
+      const pts = sampleSvgPath(seg.trim(), 300, viewBox); // giống importPath
+      raw.push(pts);
+    }
+
+    // --- Process pipeline ---
+    const norm = normalizeAll(raw);
+    const dpStrokes = norm.map(st => douglasPeucker(st, eps));
+    const processed = [];
+
+    for (const st of dpStrokes) {
+      if (!st || st.length === 0) { processed.push([]); continue; }
+
+      const pkIdx = detectPeaks(st);
+      const endpoints = [st[0]];
+      const peaks = pkIdx.map(i => st[i]);
+      const last = st[st.length - 1];
+
+      // merge start + peaks + end
+      const all = endpoints.concat(peaks).concat([last]);
+
+      // project và sort theo khoảng cách trên path
+      const projected = all.map(p => ({p, d: projectPointToPolyline(p, st).distOnPath}));
+      projected.sort((a, b) => a.d - b.d);
+
+      // deduplicate
+      const uniq = [];
+      const epsDedup = 1e-4;
+      for (const it of projected) {
+        const p = it.p;
+        const lastu = uniq[uniq.length - 1];
+        if (!lastu || Math.hypot(lastu.x - p.x, lastu.y - p.y) > epsDedup) {
+          uniq.push({x: +p.x.toFixed(6), y: +p.y.toFixed(6)});
+        }
+      }
+      processed.push(uniq);
+    }
+
+    // trả về JSON [[ [x,y], ... ], ... ]
+    const json = processed.map(st => st.map(p => [+p.x, +p.y]));
+    return json;
+  }
+
+
+  //=========================================
+  // Lấy vector giữa các điểm liền nhau
+  function getVectors(stroke) {
+    const vectors = [];
+    for (let i = 0; i < stroke.length - 1; i++) {
+      const dx = stroke[i + 1][0] - stroke[i][0];
+      const dy = stroke[i + 1][1] - stroke[i][1];
+      vectors.push([dx, dy]);
+    }
+    return vectors;
+  }
+
+  // Flatten mảng 2D [[dx, dy], ...] thành 1D [dx1, dy1, dx2, dy2, ...]
+  function flattenVectors(vectors) {
+    return vectors.flat();
+  }
+
+  // Cosine similarity giữa 2 mảng 1D
+  function cosineSimilarity(flatA, flatB) {
+    const len = Math.min(flatA.length, flatB.length);
+    let dot = 0, normA = 0, normB = 0;
+    for (let i = 0; i < len; i++) {
+      dot += flatA[i] * flatB[i];
+      normA += flatA[i] * flatA[i];
+      normB += flatB[i] * flatB[i];
+    }
+    if (normA === 0 || normB === 0) return 0; // nếu stroke chỉ 1 điểm
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  // Tính similarity giữa 2 stroke, tự động resample bằng cách bỏ điểm thừa nếu cần
+  function strokeSimilarity(strokeA, strokeB) {
+    const nA = strokeA.length;
+    const nB = strokeB.length;
+
+    console.log("strokeB", strokeB);
+    console.log("nB", nB);
+
+    // cùng số điểm → tính trực tiếp
+    if (nA === nB) {
+      const flatA = flattenVectors(getVectors(strokeA));
+      const flatB = flattenVectors(getVectors(strokeB));
+      const sim = cosineSimilarity(flatA, flatB);
+      console.log("Direct cosine similarity:", sim.toFixed(6));
+      return sim;
+    }
+
+    // khác số điểm → loại bỏ điểm thừa trên stroke dài hơn
+    const longStroke = nA > nB ? strokeA : strokeB;
+    const shortStroke = nA > nB ? strokeB : strokeA;
+    const removeCount = Math.abs(nA - nB);
+
+    console.log("Resampling: removing points, removeCount =", removeCount);
+
+    // generate all combinations các chỉ số có thể bỏ
+    function* combinations(arr, k, start = 0, combo = []) {
+      if (combo.length === k) {
+        yield combo.slice();
+        return;
+      }
+      for (let i = start; i < arr.length; i++) {
+        combo.push(arr[i]);
+        yield* combinations(arr, k, i + 1, combo);
+        combo.pop();
+      }
+    }
+
+    const indices = Array.from({length: longStroke.length - 2}, (_, i) => i + 1); // ko bỏ đầu/cuối
+    let bestSim = -Infinity;
+    let bestRemoved = [];
+
+    for (let combo of combinations(indices, removeCount)) {
+      // tạo stroke mới bằng cách loại bỏ các chỉ số combo
+      const reduced = longStroke.filter((_, idx) => !combo.includes(idx));
+      const flatLong = flattenVectors(getVectors(reduced));
+      const flatShort = flattenVectors(getVectors(shortStroke));
+      let sim = cosineSimilarity(flatLong, flatShort);
+      // trừ penalty
+      const penalty = removeCount === 0 ? 0 : removeCount === 1 ? 0.1 : 0.5;
+      sim -= penalty;
+      console.log("Removed indices:", combo, "Similarity with penalty:", sim.toFixed(6));
+      if (sim > bestSim) {
+        bestSim = sim;
+        bestRemoved = combo.slice();
+      }
+    }
+
+    console.log("Best removed indices:", bestRemoved, "Best similarity:", bestSim.toFixed(6));
+    return bestSim;
+  }
+
+  //======================================
+  // Hungarian Algorithm với debug
+  function hungarian(matrix) {
+    const n = matrix.length;
+    const u = Array(n + 1).fill(0);
+    const v = Array(n + 1).fill(0);
+    const p = Array(n + 1).fill(0);
+    const way = Array(n + 1).fill(0);
+
+    console.log("Hungarian: input matrix:");
+    console.table(matrix);
+
+    for (let i = 1; i <= n; i++) {
+      p[0] = i;
+      let minv = Array(n + 1).fill(Infinity);
+      let used = Array(n + 1).fill(false);
+      let j0 = 0;
+
+      do {
+        used[j0] = true;
+        const i0 = p[j0];
+        let delta = Infinity;
+        let j1 = -1;
+
+        for (let j = 1; j <= n; j++) {
+          if (!used[j]) {
+            const cur = -(matrix[i0 - 1][j - 1] || 0) - u[i0] - v[j];
+            if (cur < minv[j]) {
+              minv[j] = cur;
+              way[j] = j0;
+            }
+            if (minv[j] < delta) {
+              delta = minv[j];
+              j1 = j;
+            }
+          }
+        }
+
+        for (let j = 0; j <= n; j++) {
+          if (used[j]) {
+            u[p[j]] += delta;
+            v[j] -= delta;
+          } else {
+            minv[j] -= delta;
+          }
+        }
+
+        j0 = j1;
+      } while (p[j0] !== 0);
+
+      do {
+        const j1 = way[j0];
+        p[j0] = p[j1];
+        j0 = j1;
+      } while (j0 !== 0);
+    }
+
+    const ans = Array(n).fill(-1);
+    for (let j = 1; j <= n; j++) {
+      if (p[j] > 0 && p[j] <= n) ans[p[j] - 1] = j - 1;
+    }
+
+    console.log("Hungarian: matching result (index of B for each A):", ans);
+    return ans;
+  }
+
+  // Hàm kanjiSimilarity với debug
+  function kanjiSimilarity(strokesA, strokesB) {
+    const n = strokesA.length;
+    const m = strokesB.length;
+    const size = Math.max(n, m);
+
+    const simMatrix = [];
+    for (let i = 0; i < size; i++) {
+      simMatrix[i] = [];
+      for (let j = 0; j < size; j++) {
+        if (i < n && j < m) {
+          simMatrix[i][j] = strokeSimilarity(strokesA[i], strokesB[j]);
+        } else {
+          simMatrix[i][j] = 0; // penalty cho fake stroke
+        }
+      }
+    }
+
+    console.log("kanjiSimilarity: similarity matrix:");
+    console.table(simMatrix);
+
+    const matching = hungarian(simMatrix);
+
+    let totalSim = 0;
+    for (let i = 0; i < n; i++) {
+      const j = matching[i];
+      if (j !== -1 && j < m) {
+        totalSim += simMatrix[i][j];
+      } else {
+        console.log(`Nét ${i} của A ghép với nét ảo, similarity = 0`);
+      }
+    }
+
+    const normalizedSim = totalSim / size;
+    console.log("kanjiSimilarity: total similarity =", totalSim);
+    console.log("kanjiSimilarity: normalized similarity =", normalizedSim);
+
+    return normalizedSim;
+  }
+
+
+  //======================================
   // controls
   document.getElementById('undo').addEventListener('click', ()=>{ raw.pop(); processPipeline(); drawAll(); });
-  document.getElementById('clear').addEventListener('click', ()=>{ raw.length=0; simplified.length=0; resampled.length=0; outputEl.textContent=''; statsEl.textContent='Strokes: 0 | Raw pts: 0 | Simplified pts: 0'; drawAll(); });
+  document.getElementById('clear').addEventListener('click', ()=>{ raw.length=0; dpStrokes.length=0; processed.length=0; outputEl.textContent=''; statsEl.textContent='Strokes: 0 | Raw pts: 0 | Peaks kept: 0'; drawAll(); });
   epsEl.addEventListener('input', ()=>{ epsVal.textContent = epsEl.value; processPipeline(); });
-  NbaseEl.addEventListener('input', ()=>{ NVal.textContent = NbaseEl.value; processPipeline(); });
-  peakMultEl.addEventListener('input', ()=>{ peakVal.textContent = peakMultEl.value; processPipeline(); });
-  NminEl.addEventListener('change', ()=> processPipeline());
-  NmaxEl.addEventListener('change', ()=> processPipeline());
 
-  // Recognize
+  // Recognize / Export
   document.getElementById('recognize').addEventListener('click', ()=>{
     processPipeline();
-    // resampled are normalized coords (0..1), export
-    const json = resampled.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
-    outputEl.textContent = JSON.stringify({N_base: parseInt(NbaseEl.value,10), N_min: parseInt(NminEl.value,10), N_max: parseInt(NmaxEl.value,10), strokes: json}, null, 2);
-  });
+    // processed are normalized coords (0..1)
+    const json = processed.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
+
+    //const kanjiA = json;
+    //const kanjiB = svgPathToJson("M52.71,47c1.02,1.02,1.51,2.5,1.51,4.27c0,19.73-0.01,35.91-0.01,40.87c0,11.25-6.21,2-7.71,0.75M36.19,74.81c0.18,1.38-0.26,2.53-1.19,3.6c-3.87,4.46-9.74,9.42-20.25,15.72M69.71,73.25c6.1,2.94,14.67,11.5,17.04,16.63");   
+    //const similarity = kanjiSimilarity(kanjiA, kanjiB);
+
+    outputEl.textContent = getTop5Kanji(json);
+    });
 
   // initial draw
   drawAll();
-
+    // expose to global scope so other scripts can use
+  window.svgPathToJson = svgPathToJson;
+  window.kanjiSimilarity = kanjiSimilarity;
+  window.strokeSimilarity = strokeSimilarity;
+  window.getVectors = getVectors;
+  window.flattenVectors = flattenVectors;
+  window.cosineSimilarity = cosineSimilarity;
+  window.hungarian = hungarian;
 })();
 </script>
+
+<script>
+  async function getTop5Kanji(jsonUser) {
+    try {
+      console.log("Start fetching kanjivg.xml");
+
+      const kanjivgText = await fetch('kanjivg.xml').then(r => r.text());
+      console.log("Fetched kanjivg.xml, length:", kanjivgText.length);
+
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(kanjivgText, "application/xml");
+
+      const kanjiElems = xmlDoc.querySelectorAll("kanji");
+      console.log("Number of kanji elements:", kanjiElems.length);
+
+      const results = [];
+
+      for (const kanjiElem of kanjiElems) {
+        const id = kanjiElem.getAttribute("id");
+        elementChar = kanjiElem.querySelector("g").getAttribute("kvg:element");
+        console.log("Processing kanji:", id, elementChar);
+
+        const paths = kanjiElem.getElementsByTagName("path");
+        let combinedD = "";
+        for (const p of paths) {
+          const d = p.getAttribute("d");
+          if (d) combinedD += d;
+        }
+        console.log("Combined d length:", combinedD.length);
+
+        const kanjiB = svgPathToJson(combinedD, 109, 0.5);
+        console.log("kanjiB strokes:", kanjiB.length);
+
+        const similarity = kanjiSimilarity(jsonUser, kanjiB);
+        console.log("Similarity:", similarity);
+
+        results.push({id, element: elementChar, similarity});
+      }
+
+      results.sort((a,b)=>b.similarity - a.similarity);
+      console.log("Top 5 results:", results.slice(0,5));
+      return results.slice(0,5);
+
+    } catch (err) {
+      console.error("Error in getTop5Kanji:", err);
+      return [];
+    }
+  }
+</script>
+
 </body>
 </html>
