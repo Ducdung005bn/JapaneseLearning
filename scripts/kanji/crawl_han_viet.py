@@ -104,8 +104,6 @@ def crawl_han_viet(kanji: str):
 
 if __name__ == "__main__":
     import json
-    import time
-    import random
 
     kanji_data = []
 

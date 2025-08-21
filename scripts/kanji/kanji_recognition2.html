@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kanji — Endpoints + Peaks Only (Canvas)</title>
+<style>
+  :root{--bg:#0b0d10;--panel:#141820;--ink:#e5e7eb}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:13px/1.4 system-ui,Segoe UI,Roboto,Arial}
+  .wrap{max-width:1100px;margin:16px auto;padding:12px}
+  .card{background:var(--panel);border-radius:10px;padding:12px;box-shadow:0 8px 20px rgba(0,0,0,.4)}
+  canvas{background:#fff;border-radius:8px;display:block;width:420px;height:420px;touch-action:none}
+  .toolbar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center}
+  button,input,textarea,select{font:13px}
+  button{background:#1f2937;color:var(--ink);border-radius:8px;padding:8px 12px;border:1px solid #374151;cursor:pointer}
+  .danger{background:#7f1d1d}
+  label{font-size:13px;color:#cbd5e1;display:flex;align-items:center;gap:8px}
+  .col{display:flex;flex-direction:column;gap:8px}
+  .row{display:flex;gap:12px;align-items:center;margin-top:10px}
+  .small{font-size:13px;color:#94a3b8}
+  textarea{width:380px;height:96px;background:#071018;color:#dbeafe;border-radius:6px;padding:8px;border:1px solid #0f172a}
+  #output{margin-top:10px;white-space:pre-wrap;font-family:monospace;background:#071018;padding:8px;border-radius:6px;max-height:320px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h2>Kanji Recognition</h2>
+  <div class="card" style="display:flex;gap:16px">
+    <div>
+      <canvas id="canvas" width="840" height="840" aria-label="drawing canvas"></canvas>
+
+      <div class="toolbar">
+        <button id="undo">Undo</button>
+        <button id="clear" class="danger">Clear</button>
+        <button id="recognize">Recognize & Export</button>
+
+        <label class="small">ε (DP)
+          <input id="eps" type="range" min="0.05" max="0.2" step="0.025" value="0.1" style="width:160px">
+          <span id="epsVal">0.005</span>
+        </label>
+      </div>
+
+      <div style="margin-top:8px" class="small">Draw strokes or paste a KanjiVG path and press Import.</div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <textarea id="svgpath" placeholder='Paste path d attribute here (e.g. M32.68,11.13c0.72...)'></textarea>
+        <div class="col" style="min-width:260px">
+          <label class="small">viewBox size (KanjiVG): <input id="vb" value="109" style="width:72px"></label>
+          <button id="importPath">Import Path</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;min-width:300px">
+      <div id="output">Output</div>
+      <div style="height:12px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const CSS_SIZE = 420;
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const DPR = window.devicePixelRatio || 1;
+  canvas.style.width = CSS_SIZE + 'px';
+  canvas.style.height = CSS_SIZE + 'px';
+  canvas.width = CSS_SIZE * DPR;
+  canvas.height = CSS_SIZE * DPR;
+  ctx.scale(DPR, DPR);
+
+  // State (raw in pixel coords)
+  let raw = []; // array of strokes, each stroke is [{x,y},...]
+  let dpStrokes = [];
+  let processed = []; // strokes after: only endpoints+peaks (normalized)
+  let curStroke = null, drawing = false;
+
+  // UI
+  const epsEl = document.getElementById('eps'), epsVal = document.getElementById('epsVal');
+  const outputEl = document.getElementById('output');
+  epsVal.textContent = epsEl.value; 
+
+  const copyP = p => ({x: p.x, y: p.y});
+  const dist = (a,b) => Math.hypot(a.x-b.x, a.y-b.y);
+  const normToCanvas = p => ({ x: p.x * CSS_SIZE, y: p.y * CSS_SIZE });
+
+  // Sample SVG path into polyline by using an off-DOM path
+  function sampleSvgPath(dStr, samples = 256, viewBoxSize = 109){
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${viewBoxSize} ${viewBoxSize}`);
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', dStr);
+    svg.appendChild(path);
+    document.body.appendChild(svg);
+    const L = path.getTotalLength();
+    const pts = [];
+    for(let i=0;i<samples;i++){
+      const t = i/(samples-1);
+      const p = path.getPointAtLength(t*L);
+      pts.push({ x: p.x * (CSS_SIZE/viewBoxSize), y: p.y * (CSS_SIZE/viewBoxSize) });
+    }
+    document.body.removeChild(svg);
+    return pts;
+  }
+
+  // Normalize all strokes to [0,1] with center at (0.5,0.5)
+  function normalizeAll(strokes){
+    const pts = [];
+    for(const s of strokes) for(const p of s) pts.push(p);
+    if(pts.length === 0) return strokes.map(s => s.map(()=>({x:0.5,y:0.5})));
+    const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    let W = maxX - minX, H = maxY - minY; if(W===0 && H===0){ W = H = 1; }
+    const scale = 1 / Math.max(W, H);
+    const cx = (minX + maxX)/2, cy = (minY + maxY)/2;
+    const tx = 0.5 - ((cx - minX) * scale);
+    const ty = 0.5 - ((cy - minY) * scale);
+    return strokes.map(st => st.map(p => ({ x: (p.x - minX) * scale + tx, y: (p.y - minY) * scale + ty })));
+  }
+
+  // Douglas-Peucker Algorithm
+  function perpDist(pt,a,b){
+    const vx = b.x - a.x, vy = b.y - a.y;
+    const wx = pt.x - a.x, wy = pt.y - a.y;
+    const denom = vx*vx + vy*vy;
+    let t = denom === 0 ? 0 : (vx*wx + vy*wy) / denom;
+    t = Math.max(0, Math.min(1, t));
+    const px = a.x + t*vx, py = a.y + t*vy;
+    return Math.hypot(pt.x-px, pt.y-py);
+  }
+  function douglasPeucker(points, eps){
+    if(!points || points.length < 3) return points ? points.slice() : [];
+    let maxd = 0, idx = 0;
+    const a = points[0], b = points[points.length-1];
+    for(let i=1;i<points.length-1;i++){
+      const d = perpDist(points[i], a, b);
+      if(d > maxd){ maxd = d; idx = i; }
+    }
+    if(maxd > eps){
+      const left = douglasPeucker(points.slice(0, idx+1), eps);
+      const right = douglasPeucker(points.slice(idx), eps);
+      return left.slice(0,-1).concat(right);
+    } else {
+      return [a,b];
+    }
+  }
+
+  function getStartingEndpoint(endpointA, endpointB) {
+      if (Math.abs(endpointA.y - endpointB.y) > 1e-6) {
+        return endpointA.y < endpointB.y ? endpointA : endpointB;
+      }
+      return endpointA.x < endpointB.x ? endpointA : endpointB;
+    }
+
+  function processPipeline(){
+    const norm = normalizeAll(raw);
+
+    // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
+    const eps = parseFloat(epsEl.value);
+    dpStrokes = norm.map(st => douglasPeucker(st, eps));
+
+
+    dpStrokes.forEach((st, index) => { //each stroke
+      if(!st || st.length === 0) return; //continue
+
+      //With Kanji, It is normal that: startingX < endindX and startingY < endingY
+      const startingEndpoint = getStartingEndpoint(st[0], st[st.length - 1]);
+      if (
+        startingEndpoint.x !== st[0].x ||
+        startingEndpoint.y !== st[0].y
+      ) {
+        st.reverse();
+      }
+    });
+
+    // update UI
+    drawAll();
+  }
+
+  // draw helper
+  function drawAll(){
+    ctx.clearRect(0,0,CSS_SIZE,CSS_SIZE);
+    // raw strokes (pixel)
+    ctx.lineWidth = 4; ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+    for(const st of raw){ if(!st||st.length<2) continue; ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y); for(let i=1;i<st.length;i++) ctx.lineTo(st[i].x, st[i].y); ctx.stroke(); }
+
+    // dp strokes (red dashed)
+    if(dpStrokes && dpStrokes.length){
+      ctx.setLineDash([6,6]); ctx.lineWidth = 2; ctx.strokeStyle = '#ef4444';
+      for(const st of dpStrokes){ if(!st||st.length<2) continue; ctx.beginPath(); const p0 = normToCanvas(st[0]); ctx.moveTo(p0.x,p0.y); for(let i=1;i<st.length;i++){ const p = normToCanvas(st[i]); ctx.lineTo(p.x,p.y); } ctx.stroke(); }
+      ctx.setLineDash([]);
+    }
+
+    // processed points (blue circles)
+    ctx.fillStyle = '#1e40af';
+    for(const st of processed){ if(!st) continue; for(const p of st){ const q = normToCanvas(p); ctx.beginPath(); ctx.arc(q.x,q.y,5,0,Math.PI*2); ctx.fill(); } }
+
+    // outline peaks (gold)
+    ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 2;
+    for(const st of processed){ if(!st) continue; for(const p of st){ const q = normToCanvas(p); ctx.beginPath(); ctx.arc(q.x,q.y,8,0,Math.PI*2); ctx.stroke(); } }
+
+    // current stroke live
+    if(curStroke && curStroke.length){ ctx.lineWidth = 4; ctx.strokeStyle = '#111'; ctx.beginPath(); ctx.moveTo(curStroke[0].x, curStroke[0].y); for(let i=1;i<curStroke.length;i++) ctx.lineTo(curStroke[i].x, curStroke[i].y); ctx.stroke(); }
+  }
+
+  // Input handling
+  function pagePt(e){ const r = canvas.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x: p.clientX - r.left, y: p.clientY - r.top }; }
+  canvas.addEventListener('mousedown', e=>{ e.preventDefault(); drawing=true; curStroke=[pagePt(e)]; drawAll(); });
+  window.addEventListener('mousemove', e=>{ if(!drawing) return; const p=pagePt(e); const last=curStroke[curStroke.length-1]; if(!last || dist(last,p)>0.7) curStroke.push(p); drawAll(); });
+  window.addEventListener('mouseup', e=>{ if(!drawing) return; drawing=false; if(curStroke && curStroke.length>1){ raw.push(curStroke.map(copyP)); processPipeline(); } curStroke=null; drawAll(); });
+  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); drawing=true; curStroke=[pagePt(e)]; drawAll(); });
+  canvas.addEventListener('touchmove', e=>{ e.preventDefault(); if(!drawing) return; const p=pagePt(e); const last=curStroke[curStroke.length-1]; if(!last||dist(last,p)>0.7) curStroke.push(p); drawAll(); });
+  canvas.addEventListener('touchend', e=>{ e.preventDefault(); if(!drawing) return; drawing=false; if(curStroke && curStroke.length>1){ raw.push(curStroke.map(copyP)); processPipeline(); } curStroke=null; drawAll(); });
+
+  // import path
+  document.getElementById('importPath').addEventListener('click', ()=>{
+    let d = document.getElementById('svgpath').value.trim();
+    if(!d){ alert('Paste path d'); return; }
+
+    const viewBox = parseFloat(document.getElementById('vb').value) || 109;
+
+    try {
+      // Tách theo 'M' nhưng giữ lại để tái tạo path
+      const segments = d.split(/(?=M)/g).filter(seg => seg.trim().length > 0);
+
+      segments.forEach(seg => {
+        const pts = sampleSvgPath(seg.trim(), 300, viewBox);
+        raw.push(pts);
+      });
+
+      document.getElementById('svgpath').value='';
+      processPipeline();
+
+    } catch(err) { 
+      alert('Parse error: '+err); 
+    }
+  });
+
+  //Transfer SVG path d into JSON strokes
+  function svgPathToJson(d, viewBox = 109, eps = epsVal) {
+    if (!d || d.trim() === '') return [];
+
+    let rawTemp = [];
+    let dpStrokesTemp;
+    try {
+      // Tách theo 'M' nhưng giữ lại để tái tạo path
+      const segments = d.split(/(?=M)/g).filter(seg => seg.trim().length > 0);
+
+      segments.forEach(seg => {
+        const pts = sampleSvgPath(seg.trim(), 300, viewBox);
+        rawTemp.push(pts);
+      });
+
+      document.getElementById('svgpath').value='';
+
+      const norm = normalizeAll(rawTemp);
+
+      // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
+      const eps = parseFloat(epsEl.value);
+      dpStrokesTemp = norm.map(st => douglasPeucker(st, eps));
+
+
+      dpStrokesTemp.forEach((st, index) => { //each stroke
+        if(!st || st.length === 0) return; //continue
+
+        const startingEndpoint = getStartingEndpoint(st[0], st[st.length - 1]);
+        if (
+          startingEndpoint.x !== st[0].x ||
+          startingEndpoint.y !== st[0].y
+        ) {
+          st.reverse();
+        }
+    });
+
+    } catch(err) { 
+      alert('Parse error: '+err); 
+    }
+
+    // trả về JSON [[ [x,y], ... ], ... ]
+    return dpStrokesTemp.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
+  }
+
+  // Lấy vector giữa các điểm liền nhau: vector 0->1, vector 1->2
+  function getVectors(stroke) {
+    const vectors = [];
+    for (let i = 0; i < stroke.length - 1; i++) {
+      const dx = stroke[i + 1][0] - stroke[i][0];
+      const dy = stroke[i + 1][1] - stroke[i][1];
+      vectors.push([dx, dy]);
+    }
+    return vectors;
+  }
+
+  // Cosine similarity giữa 2 mảng 1D có cùng kích cỡ. Tính độ tương đồng chứ không liên quan đến góc.
+  function cosineSimilarity(flatA, flatB) {
+    const len = Math.min(flatA.length, flatB.length);
+    if (len == 0) {
+      return 0;
+    }
+
+    let dot = 0, normA = 0, normB = 0; //tích vô hướng và độ dài
+    for (let i = 0; i < len; i++) {
+      dot += flatA[i] * flatB[i];
+      normA += flatA[i] * flatA[i];
+      normB += flatB[i] * flatB[i];
+    }
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  }
+
+  // Tính similarity giữa 2 stroke, tự động bỏ điểm thừa nếu cần
+  function strokeSimilarity(strokeA, strokeB) {
+    const nA = strokeA.length;
+    const nB = strokeB.length;
+
+    // cùng số điểm → tính trực tiếp
+    if (nA === nB) {
+      const flatA = getVectors(strokeA).flat();
+      const flatB = getVectors(strokeB).flat();
+      const similarity = cosineSimilarity(flatA, flatB);
+      console.log("Cosine similarity", similarity.toFixed(6));
+      return similarity;
+    }
+
+    // khác số điểm → loại bỏ điểm thừa trên stroke dài hơn
+    const longStroke = nA > nB ? strokeA : strokeB;
+    const shortStroke = nA > nB ? strokeB : strokeA;
+    const removeCount = Math.abs(nA - nB);
+
+    // generate all combinations các chỉ số có thể bỏ
+    function* combinations(arr, k, start = 0, combo = []) {
+      if (combo.length === k) {
+        yield combo.slice();
+        return;
+      }
+      for (let i = start; i < arr.length; i++) {
+        combo.push(arr[i]);
+        yield* combinations(arr, k, i + 1, combo);
+        combo.pop();
+      }
+    }
+
+    const indices = Array.from({length: longStroke.length - 2}, (_, i) => i + 1); // ko bỏ đầu/cuối
+    let bestSimilarity = -1;
+
+    for (let combo of combinations(indices, removeCount)) {
+      // tạo stroke mới bằng cách loại bỏ các chỉ số combo
+      const reduced = longStroke.filter((_, idx) => !combo.includes(idx));
+      const flatLong = getVectors(reduced).flat();
+      const flatShort = getVectors(shortStroke).flat();
+      let similarity = cosineSimilarity(flatLong, flatShort);
+      
+      // trừ penalty
+      let penalty;
+
+      if (removeCount === 0) {
+        penalty = 0;
+      } else if (removeCount === 1 && shortStroke >= 4) {
+        penalty = 0.05;
+      } else if (removeCount === 1 && shortStroke < 4) {
+        penalty = 0.1;
+      } else if (removeCount === 2 && shortStroke >= 4) {
+        penalty = 0.1;
+      } else {
+        penalty = 0.5;
+      }
+
+      console.log("Penalty", penalty);
+
+      similarity -= penalty;
+      if (similarity > bestSimilarity) {
+        bestSimilarity = similarity;
+      }
+    }
+
+    console.log("Best similarity", bestSimilarity.toFixed(6));
+    return bestSimilarity;
+  }
+
+  // Hungarian Algorithm
+  function hungarian(matrix) {
+    const n = matrix.length;
+    const u = Array(n + 1).fill(0);
+    const v = Array(n + 1).fill(0);
+    const p = Array(n + 1).fill(0);
+    const way = Array(n + 1).fill(0);
+
+    console.table(matrix);
+
+    for (let i = 1; i <= n; i++) {
+      p[0] = i;
+      let minv = Array(n + 1).fill(Infinity);
+      let used = Array(n + 1).fill(false);
+      let j0 = 0;
+
+      do {
+        used[j0] = true;
+        const i0 = p[j0];
+        let delta = Infinity;
+        let j1 = -1;
+
+        for (let j = 1; j <= n; j++) {
+          if (!used[j]) {
+            const cur = -(matrix[i0 - 1][j - 1] || 0) - u[i0] - v[j];
+            if (cur < minv[j]) {
+              minv[j] = cur;
+              way[j] = j0;
+            }
+            if (minv[j] < delta) {
+              delta = minv[j];
+              j1 = j;
+            }
+          }
+        }
+
+        for (let j = 0; j <= n; j++) {
+          if (used[j]) {
+            u[p[j]] += delta;
+            v[j] -= delta;
+          } else {
+            minv[j] -= delta;
+          }
+        }
+
+        j0 = j1;
+      } while (p[j0] !== 0);
+
+      do {
+        const j1 = way[j0];
+        p[j0] = p[j1];
+        j0 = j1;
+      } while (j0 !== 0);
+    }
+
+    const ans = Array(n).fill(-1);
+    for (let j = 1; j <= n; j++) {
+      if (p[j] > 0 && p[j] <= n) ans[p[j] - 1] = j - 1;
+    }
+
+    return ans;
+  }
+
+  // Hàm kanjiSimilarity với debug
+  function kanjiSimilarity(strokesA, strokesB) {
+    const n = strokesA.length;
+    const m = strokesB.length;
+    const size = Math.max(n, m);
+
+    const simMatrix = [];
+    for (let i = 0; i < size; i++) {
+      simMatrix[i] = [];
+      for (let j = 0; j < size; j++) {
+        if (i < n && j < m) {
+          simMatrix[i][j] = strokeSimilarity(strokesA[i], strokesB[j]);
+        } else {
+          simMatrix[i][j] = 0; // penalty cho fake stroke
+        }
+      }
+    }
+
+    console.log("kanjiSimilarity: similarity matrix:");
+    console.table(simMatrix);
+
+    const matching = hungarian(simMatrix);
+
+    let totalSim = 0;
+    for (let i = 0; i < n; i++) {
+      const j = matching[i];
+      if (j !== -1 && j < m) {
+        totalSim += simMatrix[i][j];
+      }
+    }
+
+    const normalizedSim = totalSim / size;
+    console.log("kanjiSimilarity: total similarity =", totalSim);
+    console.log("kanjiSimilarity: normalized similarity =", normalizedSim);
+
+    return normalizedSim;
+  }
+
+
+  //======================================
+  // controls
+  document.getElementById('undo').addEventListener('click', ()=>{ raw.pop(); processPipeline(); drawAll(); });
+  document.getElementById('clear').addEventListener('click', ()=>{ raw.length=0; dpStrokes.length=0; processed.length=0; outputEl.textContent='Output'; drawAll(); });
+  epsEl.addEventListener('input', ()=>{ epsVal.textContent = epsEl.value; processPipeline(); });
+
+  document.getElementById('recognize').addEventListener('click', ()=>{
+    const json = dpStrokes.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
+    // outputEl.textContent = getTop5Kanji(json);
+    strokeA = svgPathToJson("M11.76227,48.784853C13.958616,49.92666,15.452132,49.510237,16.399001,49.066947C20.430518,47.186325,25.916505,44.714649,27.380735,44.150462C28.844967,43.572842,30.143252,45.762424,29.333044,47.643047C21.640949,65.495528,20.918595,58.107369,28.844967,70.452312C29.801598,71.943378,29.577083,73.273246,28.112851,74.710579C26.64862,76.147912,21.767849,79.613631,17.258017,82.797256");
+    strokeB = json;
+    outputEl.textContent = strokeSimilarity(strokeA[0], strokeB[0]);
+    });
+
+  // initial draw
+  drawAll();
+})();
+</script>
+
+<script>
+  async function getTop5Kanji(jsonUser) {
+    try {
+      console.log("Start fetching kanjivg.xml");
+
+      const kanjivgText = await fetch('kanjivg.xml').then(r => r.text());
+      console.log("Fetched kanjivg.xml, length:", kanjivgText.length);
+
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(kanjivgText, "application/xml");
+
+      const kanjiElems = xmlDoc.querySelectorAll("kanji");
+      console.log("Number of kanji elements:", kanjiElems.length);
+
+      const results = [];
+
+      for (const kanjiElem of kanjiElems) {
+        const id = kanjiElem.getAttribute("id");
+        elementChar = kanjiElem.querySelector("g").getAttribute("kvg:element");
+        console.log("Processing kanji:", id, elementChar);
+
+        const paths = kanjiElem.getElementsByTagName("path");
+        let combinedD = "";
+        for (const p of paths) {
+          const d = p.getAttribute("d");
+          if (d) combinedD += d;
+        }
+        console.log("Combined d length:", combinedD.length);
+
+        const kanjiB = svgPathToJson(combinedD, 109, 0.5);
+        console.log("kanjiB strokes:", kanjiB.length);
+
+        const similarity = kanjiSimilarity(jsonUser, kanjiB);
+        console.log("Similarity:", similarity);
+
+        results.push({id, element: elementChar, similarity});
+      }
+
+      results.sort((a,b)=>b.similarity - a.similarity);
+      console.log("Top 5 results:", results.slice(0,5));
+      return results.slice(0,5);
+
+    } catch (err) {
+      console.error("Error in getTop5Kanji:", err);
+      return [];
+    }
+  }
+</script>
+
+</body>
+</html>
