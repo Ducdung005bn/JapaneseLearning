@@ -35,7 +35,7 @@
         <button id="recognize">Recognize & Export</button>
 
         <label class="small">ε (DP)
-          <input id="eps" type="range" min="0.05" max="0.2" step="0.025" value="0.1" style="width:160px">
+          <input id="eps" type="range" min="0.1" max="0.5" step="0.025" value="0.1" style="width:160px">
           <span id="epsVal">0.005</span>
         </label>
       </div>
@@ -280,7 +280,9 @@
     }
 
     // trả về JSON [[ [x,y], ... ], ... ]
-    return dpStrokesTemp.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
+    return {
+    dp: dpStrokesTemp.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)])),
+    raw: rawTemp};
   }
 
   // Lấy vector giữa các điểm liền nhau: vector 0->1, vector 1->2
@@ -310,74 +312,101 @@
     return dot / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  // Tính similarity giữa 2 stroke, tự động bỏ điểm thừa nếu cần
-  function strokeSimilarity(strokeA, strokeB) {
+  function findBalencedPts(rawOfTheLonger, targetPoints, currentEps, maxEps, maxIter) {
+    let low = currentEps;
+    let high = maxEps;
+    let bestEps = currentEps;
+    const norm = normalizeAll(rawOfTheLonger);
+
+    for (let i = 0; i < 5; i++) {
+      const mid = (low + high) / 2;
+
+      // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
+      const dpPts = norm.map(st => douglasPeucker(st, mid));
+
+      console.log("mid:", mid);
+      console.log("dpPts", dpPts);
+
+      if (dpPts[0].length == targetPoints) { //douglasPeucker trả về các strokes
+        bestEps = mid;
+        return dpPts[0].map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]);
+      }
+
+      if (dpPts[0].length > targetPoints) {
+        low = mid;   // eps quá nhỏ, còn nhiều điểm → tăng eps
+      } else {
+        high = mid;  // eps quá lớn, ít điểm → giảm eps
+      }
+
+      bestEps = mid;
+      
+      if (i === 4) {
+        return null;
+      }
+    }
+  }
+
+  function strokeSimilarity(strokeA, strokeB, rawA, rawB) {
     const nA = strokeA.length;
     const nB = strokeB.length;
 
-    // cùng số điểm → tính trực tiếp
-    if (nA === nB) {
-      const flatA = getVectors(strokeA).flat();
-      const flatB = getVectors(strokeB).flat();
-      const similarity = cosineSimilarity(flatA, flatB);
-      console.log("Cosine similarity", similarity.toFixed(6));
-      return similarity;
+    let ptsA = strokeA;
+    let ptsB = strokeB;
+    let removeCount = 0; // số điểm bị loại để cân bằng
+
+    if (removeCount >= 4) {
+      return 0;
     }
 
-    // khác số điểm → loại bỏ điểm thừa trên stroke dài hơn
-    const longStroke = nA > nB ? strokeA : strokeB;
-    const shortStroke = nA > nB ? strokeB : strokeA;
-    const removeCount = Math.abs(nA - nB);
+    // Nếu số điểm khác nhau, hạ số điểm của nét dài hơn
+    if (nA !== nB) {
+      const longLength = Math.max(nA, nB);
+      const shortLength = Math.min(nA, nB);
+      const rawOfTheLonger = nA > nB ? rawA : rawB;
+      console.log("Long points:", longLength);
+      console.log("Short points:", shortLength);
+      console.log("epsEl:", parseFloat(epsEl.value));
 
-    // generate all combinations các chỉ số có thể bỏ
-    function* combinations(arr, k, start = 0, combo = []) {
-      if (combo.length === k) {
-        yield combo.slice();
-        return;
+      const balancedPts = findBalencedPts(rawOfTheLonger, shortLength, parseFloat(epsEl.value), 0.5, 20);
+
+      if (balancedPts == null) {
+        return 0;
       }
-      for (let i = start; i < arr.length; i++) {
-        combo.push(arr[i]);
-        yield* combinations(arr, k, i + 1, combo);
-        combo.pop();
-      }
+
+      removeCount = longLength - balancedPts.length;
+      console.log("Removed points:", removeCount);
+
+      ptsA = nA > nB ? strokeB : strokeA;
+      ptsB = balancedPts;
+    } 
+
+    // cùng số điểm → tính cosine similarity
+    const flatA = getVectors(ptsA).flat();
+    const flatB = getVectors(ptsB).flat();
+    console.log("ptsB:", ptsB);
+    console.log("flatB:", flatB);
+
+    let sim = cosineSimilarity(flatA, flatB);
+    console.log("Raw cosine similarity:", sim.toFixed(6));
+
+    // penalty: tỷ lệ điểm bỏ so với tổng điểm
+    if (removeCount > 0) {
+      const totalPts = Math.max(nA, nB);
+      const penalty = removeCount === 1? 0.05 : removeCount === 2 ? 0.4 : 0.8; 
+      console.log(`Penalty calculated: ${penalty.toFixed(3)}`);
+
+      sim -= penalty;
+      sim = Math.max(0, sim);
+      console.log(
+        `Applied penalty for removing ${removeCount} points: ${penalty.toFixed(3)}`
+      );
     }
 
-    const indices = Array.from({length: longStroke.length - 2}, (_, i) => i + 1); // ko bỏ đầu/cuối
-    let bestSimilarity = -1;
-
-    for (let combo of combinations(indices, removeCount)) {
-      // tạo stroke mới bằng cách loại bỏ các chỉ số combo
-      const reduced = longStroke.filter((_, idx) => !combo.includes(idx));
-      const flatLong = getVectors(reduced).flat();
-      const flatShort = getVectors(shortStroke).flat();
-      let similarity = cosineSimilarity(flatLong, flatShort);
-      
-      // trừ penalty
-      let penalty;
-
-      if (removeCount === 0) {
-        penalty = 0;
-      } else if (removeCount === 1 && shortStroke >= 4) {
-        penalty = 0.05;
-      } else if (removeCount === 1 && shortStroke < 4) {
-        penalty = 0.1;
-      } else if (removeCount === 2 && shortStroke >= 4) {
-        penalty = 0.1;
-      } else {
-        penalty = 0.5;
-      }
-
-      console.log("Penalty", penalty);
-
-      similarity -= penalty;
-      if (similarity > bestSimilarity) {
-        bestSimilarity = similarity;
-      }
-    }
-
-    console.log("Best similarity", bestSimilarity.toFixed(6));
-    return bestSimilarity;
+    console.log("Final similarity:", sim.toFixed(6));
+    return sim;
   }
+
+
 
   // Hungarian Algorithm
   function hungarian(matrix) {
@@ -490,9 +519,11 @@
   document.getElementById('recognize').addEventListener('click', ()=>{
     const json = dpStrokes.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
     // outputEl.textContent = getTop5Kanji(json);
-    strokeA = svgPathToJson("M11.76227,48.784853C13.958616,49.92666,15.452132,49.510237,16.399001,49.066947C20.430518,47.186325,25.916505,44.714649,27.380735,44.150462C28.844967,43.572842,30.143252,45.762424,29.333044,47.643047C21.640949,65.495528,20.918595,58.107369,28.844967,70.452312C29.801598,71.943378,29.577083,73.273246,28.112851,74.710579C26.64862,76.147912,21.767849,79.613631,17.258017,82.797256");
+    const { dp: strokeA, raw: rawA }  = svgPathToJson("M11.76227,48.784853C13.958616,49.92666,15.452132,49.510237,16.399001,49.066947C20.430518,47.186325,25.916505,44.714649,27.380735,44.150462C28.844967,43.572842,30.143252,45.762424,29.333044,47.643047C21.640949,65.495528,20.918595,58.107369,28.844967,70.452312C29.801598,71.943378,29.577083,73.273246,28.112851,74.710579C26.64862,76.147912,21.767849,79.613631,17.258017,82.797256");
     strokeB = json;
-    outputEl.textContent = strokeSimilarity(strokeA[0], strokeB[0]);
+    console.log("strokeA[0]:", strokeA[0]);
+    console.log("strokeB[0]", strokeB[0]);
+    outputEl.textContent = strokeSimilarity(strokeA[0], strokeB[0], rawA, raw);
     });
 
   // initial draw
