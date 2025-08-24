@@ -312,24 +312,42 @@
     return dot / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  function findBalencedPts(rawOfTheLonger, targetPoints, currentEps, maxEps, maxIter) {
-    let low = currentEps;
+  function findBalencedPts(rawOfTheLonger, 
+      rawOfTheShorter, 
+      strokeOfTheLonger, 
+      strokeOfTheShorter, 
+      targetPoints,
+      currentEpsOfTheLonger, 
+      currentEpsOfTheShorter,
+      maxEps, 
+      maxIter) {
+    let low = currentEpsOfTheLonger;
     let high = maxEps;
-    let bestEps = currentEps;
+    let bestEps = low;
     const norm = normalizeAll(rawOfTheLonger);
+
+    let candidates = []; // {eps, count}
 
     for (let i = 0; i < 5; i++) {
       const mid = (low + high) / 2;
 
       // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
       const dpPts = norm.map(st => douglasPeucker(st, mid));
+      candidates.push({ eps: mid, stroke: dpPts[0]});
 
       console.log("mid:", mid);
-      console.log("dpPts", dpPts);
+      console.log("dpPts", dpPts[0]);
 
       if (dpPts[0].length == targetPoints) { //douglasPeucker trả về các strokes
         bestEps = mid;
-        return dpPts[0].map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]);
+
+        console.log("strokeOfTheLongerAfter", dpPts[0].map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
+        console.log("strokeOfTheShorterAfter", strokeOfTheShorter);
+        return {
+          strokeOfTheLongerAfter: dpPts[0].map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]),
+          strokeOfTheShorterAfter: strokeOfTheShorter
+        };
+
       }
 
       if (dpPts[0].length > targetPoints) {
@@ -341,6 +359,31 @@
       bestEps = mid;
       
       if (i === 4) {
+        const smaller = candidates
+        .filter(c => c.stroke.length < targetPoints)
+        .filter((c, index, self) =>
+          index === self.findIndex(x => x.stroke.length === c.stroke.length)
+        );
+
+        smaller.sort((a, b) => b.stroke.length - a.stroke.length);
+
+        console.log("smaller", smaller);
+
+        for (const element of smaller) {
+        const result = findBalencedPts(
+          rawOfTheShorter,
+          rawOfTheLonger,
+          strokeOfTheShorter,
+          element.stroke,
+          element.stroke.length,
+          currentEpsOfTheShorter,
+          element.eps,
+          maxEps,
+          maxIter
+        );
+
+        if (result != null) return result; // dừng ngay khi đệ quy trả về kết quả hợp lệ
+        }
         return null;
       }
     }
@@ -352,61 +395,59 @@
 
     let ptsA = strokeA;
     let ptsB = strokeB;
-    let removeCount = 0; // số điểm bị loại để cân bằng
+    
+    let removeCount = Math.abs(nA - nB); // số điểm bị loại để cân bằng
 
-    if (removeCount >= 4) {
+    if (removeCount >= 3) {
       return 0;
     }
 
     // Nếu số điểm khác nhau, hạ số điểm của nét dài hơn
-    if (nA !== nB) {
+    if (removeCount != 0) {
       const longLength = Math.max(nA, nB);
       const shortLength = Math.min(nA, nB);
+
+      const strokeOfTheLonger = nA > nB ? strokeA : strokeB;
+      const strokeOfTheShorter = nA > nB ? strokeB : strokeA;
+
       const rawOfTheLonger = nA > nB ? rawA : rawB;
+      const rawOfTheShorter = nA > nB ? rawB : rawA;
+
       console.log("Long points:", longLength);
       console.log("Short points:", shortLength);
-      console.log("epsEl:", parseFloat(epsEl.value));
 
-      const balancedPts = findBalencedPts(rawOfTheLonger, shortLength, parseFloat(epsEl.value), 0.5, 20);
+      const { strokeOfTheLongerAfter: strokeOfTheLongerAfter, strokeOfTheShorterAfter: strokeOfTheShorterAfter } = findBalencedPts(rawOfTheLonger, 
+      rawOfTheShorter, 
+      strokeOfTheLonger, 
+      strokeOfTheShorter, 
+      shortLength,
+      parseFloat(epsEl.value), 
+      parseFloat(epsEl.value),
+      0.5, 
+      20);
 
-      if (balancedPts == null) {
-        return 0;
-      }
-
-      removeCount = longLength - balancedPts.length;
-      console.log("Removed points:", removeCount);
-
-      ptsA = nA > nB ? strokeB : strokeA;
-      ptsB = balancedPts;
+      ptsA = strokeOfTheLongerAfter;
+      ptsB = strokeOfTheShorterAfter;
     } 
 
     // cùng số điểm → tính cosine similarity
     const flatA = getVectors(ptsA).flat();
     const flatB = getVectors(ptsB).flat();
-    console.log("ptsB:", ptsB);
-    console.log("flatB:", flatB);
 
     let sim = cosineSimilarity(flatA, flatB);
     console.log("Raw cosine similarity:", sim.toFixed(6));
 
-    // penalty: tỷ lệ điểm bỏ so với tổng điểm
     if (removeCount > 0) {
       const totalPts = Math.max(nA, nB);
-      const penalty = removeCount === 1? 0.05 : removeCount === 2 ? 0.4 : 0.8; 
-      console.log(`Penalty calculated: ${penalty.toFixed(3)}`);
+      const penalty = removeCount/totalPts <= 0.25? 0.05 : removeCount/totalPts <= 0.4 ? 0.4 : 0.8; 
 
       sim -= penalty;
       sim = Math.max(0, sim);
-      console.log(
-        `Applied penalty for removing ${removeCount} points: ${penalty.toFixed(3)}`
-      );
     }
 
     console.log("Final similarity:", sim.toFixed(6));
     return sim;
   }
-
-
 
   // Hungarian Algorithm
   function hungarian(matrix) {
@@ -509,7 +550,6 @@
     return normalizedSim;
   }
 
-
   //======================================
   // controls
   document.getElementById('undo').addEventListener('click', ()=>{ raw.pop(); processPipeline(); drawAll(); });
@@ -519,7 +559,8 @@
   document.getElementById('recognize').addEventListener('click', ()=>{
     const json = dpStrokes.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
     // outputEl.textContent = getTop5Kanji(json);
-    const { dp: strokeA, raw: rawA }  = svgPathToJson("M11.76227,48.784853C13.958616,49.92666,15.452132,49.510237,16.399001,49.066947C20.430518,47.186325,25.916505,44.714649,27.380735,44.150462C28.844967,43.572842,30.143252,45.762424,29.333044,47.643047C21.640949,65.495528,20.918595,58.107369,28.844967,70.452312C29.801598,71.943378,29.577083,73.273246,28.112851,74.710579C26.64862,76.147912,21.767849,79.613631,17.258017,82.797256");
+    const { dp: strokeA, raw: rawA }  = svgPathToJson(
+      "M13,50.5c1.75,0.62,4,0.5,5,0.25S26.79,47.6,28.25,47c2.75-1.12,3.66,0.14,2.25,3c-6.62,13.38-6.75,8.88,0.25,18.5c1.36,1.86,1.62,2.62-0.5,4.75C28.87,74.63,22.88,79.62,20,82");
     strokeB = json;
     console.log("strokeA[0]:", strokeA[0]);
     console.log("strokeB[0]", strokeB[0]);
