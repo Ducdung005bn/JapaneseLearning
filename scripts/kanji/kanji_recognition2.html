@@ -72,6 +72,7 @@
 
   // State (raw in pixel coords)
   let raw = []; // array of strokes, each stroke is [{x,y},...]
+  let normalizedRaw;
   let dpStrokes = [];
   let processed = []; // strokes after: only endpoints+peaks (normalized)
   let curStroke = null, drawing = false;
@@ -147,33 +148,33 @@
     }
   }
 
-  function getStartingEndpoint(endpointA, endpointB) {
-      if (Math.abs(endpointA.y - endpointB.y) > 1e-6) {
-        return endpointA.y < endpointB.y ? endpointA : endpointB;
-      }
-      return endpointA.x < endpointB.x ? endpointA : endpointB;
-    }
+  // function getStartingEndpoint(endpointA, endpointB) {
+  //   if (Math.abs(endpointA.y - endpointB.y) > 1e-6) {
+  //     return endpointA.y < endpointB.y ? endpointA : endpointB;
+  //   }
+  //   return endpointA.x < endpointB.x ? endpointA : endpointB;
+  // }
 
   function processPipeline(){
-    const norm = normalizeAll(raw);
+    normalizedRaw = normalizeAll(raw);
 
     // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
     const eps = parseFloat(epsEl.value);
-    dpStrokes = norm.map(st => douglasPeucker(st, eps));
+    dpStrokes = normalizedRaw.map(st => douglasPeucker(st, eps));
 
 
-    dpStrokes.forEach((st, index) => { //each stroke
-      if(!st || st.length === 0) return; //continue
+    // dpStrokes.forEach((st, index) => { //each stroke
+    //   if(!st || st.length === 0) return; //continue
 
-      //With Kanji, It is normal that: startingX < endindX and startingY < endingY
-      const startingEndpoint = getStartingEndpoint(st[0], st[st.length - 1]);
-      if (
-        startingEndpoint.x !== st[0].x ||
-        startingEndpoint.y !== st[0].y
-      ) {
-        st.reverse();
-      }
-    });
+    //   //With Kanji, It is normal that: startingX < endindX and startingY < endingY
+    //   const startingEndpoint = getStartingEndpoint(st[0], st[st.length - 1]);
+    //   if (
+    //     startingEndpoint.x !== st[0].x ||
+    //     startingEndpoint.y !== st[0].y
+    //   ) {
+    //     st.reverse();
+    //   }
+    // });
 
     // update UI
     drawAll();
@@ -244,7 +245,9 @@
     if (!d || d.trim() === '') return [];
 
     let rawTemp = [];
+    let normalizedRawTemp;
     let dpStrokesTemp;
+
     try {
       // Tách theo 'M' nhưng giữ lại để tái tạo path
       const segments = d.split(/(?=M)/g).filter(seg => seg.trim().length > 0);
@@ -256,24 +259,24 @@
 
       document.getElementById('svgpath').value='';
 
-      const norm = normalizeAll(rawTemp);
+      normalizedRawTemp = normalizeAll(rawTemp);
 
       // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
       const eps = parseFloat(epsEl.value);
-      dpStrokesTemp = norm.map(st => douglasPeucker(st, eps));
+      dpStrokesTemp = normalizedRawTemp.map(st => douglasPeucker(st, eps));
 
 
-      dpStrokesTemp.forEach((st, index) => { //each stroke
-        if(!st || st.length === 0) return; //continue
+      // dpStrokesTemp.forEach((st, index) => { //each stroke
+      //   if(!st || st.length === 0) return; //continue
 
-        const startingEndpoint = getStartingEndpoint(st[0], st[st.length - 1]);
-        if (
-          startingEndpoint.x !== st[0].x ||
-          startingEndpoint.y !== st[0].y
-        ) {
-          st.reverse();
-        }
-    });
+      //   const startingEndpoint = getStartingEndpoint(st[0], st[st.length - 1]);
+      //   if (
+      //     startingEndpoint.x !== st[0].x ||
+      //     startingEndpoint.y !== st[0].y
+      //   ) {
+      //     st.reverse();
+      //   }
+      // });
 
     } catch(err) { 
       alert('Parse error: '+err); 
@@ -282,7 +285,7 @@
     // trả về JSON [[ [x,y], ... ], ... ]
     return {
     dp: dpStrokesTemp.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)])),
-    raw: rawTemp};
+    raw: normalizedRawTemp};
   }
 
   // Lấy vector giữa các điểm liền nhau: vector 0->1, vector 1->2
@@ -312,7 +315,7 @@
     return dot / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
-  function findBalencedPts(rawOfTheLonger, 
+  function findBalencedPts(rawOfTheLonger,  //raw đã được chuẩn hóa
       rawOfTheShorter, 
       strokeOfTheLonger, 
       strokeOfTheShorter, 
@@ -324,16 +327,15 @@
     let low = currentEpsOfTheLonger;
     let high = maxEps;
     let bestEps = low;
-    const norm = normalizeAll(rawOfTheLonger);
 
     let candidates = []; // {eps, count}
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       const mid = (low + high) / 2;
 
       // use dauglasPeucker algorithm to have two endpoints and peaks with the specific value of epsilon
-      const dpPts = norm.map(st => douglasPeucker(st, mid));
-      candidates.push({ eps: mid, stroke: dpPts[0]});
+      const dpPts = [rawOfTheLonger].map(st => douglasPeucker(st, mid));
+      candidates.push({ eps: mid, stroke: dpPts[0].map(p => [+p.x.toFixed(6), +p.y.toFixed(6)])});
 
       console.log("mid:", mid);
       console.log("dpPts", dpPts[0]);
@@ -358,7 +360,7 @@
 
       bestEps = mid;
       
-      if (i === 4) {
+      if (i === 3) {
         const smaller = candidates
         .filter(c => c.stroke.length < targetPoints)
         .filter((c, index, self) =>
@@ -384,7 +386,10 @@
 
         if (result != null) return result; // dừng ngay khi đệ quy trả về kết quả hợp lệ
         }
-        return null;
+        return {
+          strokeOfTheLongerAfter: null,
+          strokeOfTheShorterAfter: null
+        };
       }
     }
   }
@@ -397,10 +402,6 @@
     let ptsB = strokeB;
     
     let removeCount = Math.abs(nA - nB); // số điểm bị loại để cân bằng
-
-    if (removeCount >= 3) {
-      return 0;
-    }
 
     // Nếu số điểm khác nhau, hạ số điểm của nét dài hơn
     if (removeCount != 0) {
@@ -428,6 +429,10 @@
 
       ptsA = strokeOfTheLongerAfter;
       ptsB = strokeOfTheShorterAfter;
+
+      if (ptsA == null && ptsB == null) {
+        return 0;
+      }
     } 
 
     // cùng số điểm → tính cosine similarity
@@ -449,31 +454,62 @@
     return sim;
   }
 
-  // Hungarian Algorithm
-  function hungarian(matrix) {
-    const n = matrix.length;
-    const u = Array(n + 1).fill(0);
-    const v = Array(n + 1).fill(0);
-    const p = Array(n + 1).fill(0);
-    const way = Array(n + 1).fill(0);
+  function classifyStroke(stroke) {
+    const start = stroke[0];
+    const end = stroke[stroke.length - 1];
+    const dx = end[0] - start[0];
+    const dy = end[1] - start[1];
 
-    console.table(matrix);
+    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+    if (Math.abs(angle) < 15 || Math.abs(angle) > 165) return 'horizontal';
+    if (Math.abs(angle - 90) < 15 || Math.abs(angle + 90) < 15) return 'vertical';
+    if (angle > 0) return 'diagonal_up';
+    return 'diagonal_down';
+  }
+
+  function groupStrokes(strokes, raw) {
+    const groups = {
+      horizontal: { strokes: [], raw: [] },
+      vertical: { strokes: [], raw: [] },
+      diagonal_up: { strokes: [], raw: [] },
+      diagonal_down: { strokes: [], raw: [] }
+    };
+
+    for (let i = 0; i < strokes.length; i++) {
+      const s = strokes[i];
+      const r = raw[i];
+      const dir = classifyStroke(s);
+
+      if (groups[dir]) {
+        groups[dir].strokes.push(s);
+        groups[dir].raw.push(r);
+      }
+    }
+    return groups;
+  }
+
+  function hungarianAlgorithm(costMatrix) {
+    const n = costMatrix.length;
+    const m = costMatrix[0].length;
+    const u = Array(n + 1).fill(0);
+    const v = Array(m + 1).fill(0);
+    const p = Array(m + 1).fill(0);
+    const way = Array(m + 1).fill(0);
 
     for (let i = 1; i <= n; i++) {
       p[0] = i;
-      let minv = Array(n + 1).fill(Infinity);
-      let used = Array(n + 1).fill(false);
       let j0 = 0;
-
+      const minv = Array(m + 1).fill(Infinity);
+      const used = Array(m + 1).fill(false);
       do {
         used[j0] = true;
         const i0 = p[j0];
         let delta = Infinity;
-        let j1 = -1;
-
-        for (let j = 1; j <= n; j++) {
+        let j1 = 0;
+        for (let j = 1; j <= m; j++) {
           if (!used[j]) {
-            const cur = -(matrix[i0 - 1][j - 1] || 0) - u[i0] - v[j];
+            const cur = costMatrix[i0 - 1][j - 1] - u[i0] - v[j];
             if (cur < minv[j]) {
               minv[j] = cur;
               way[j] = j0;
@@ -484,8 +520,7 @@
             }
           }
         }
-
-        for (let j = 0; j <= n; j++) {
+        for (let j = 0; j <= m; j++) {
           if (used[j]) {
             u[p[j]] += delta;
             v[j] -= delta;
@@ -493,10 +528,8 @@
             minv[j] -= delta;
           }
         }
-
         j0 = j1;
       } while (p[j0] !== 0);
-
       do {
         const j1 = way[j0];
         p[j0] = p[j1];
@@ -504,53 +537,79 @@
       } while (j0 !== 0);
     }
 
-    const ans = Array(n).fill(-1);
-    for (let j = 1; j <= n; j++) {
-      if (p[j] > 0 && p[j] <= n) ans[p[j] - 1] = j - 1;
+    const result = [];
+    for (let j = 1; j <= m; j++) {
+      if (p[j] !== 0) result.push([p[j] - 1, j - 1]);
     }
-
-    return ans;
+    return result;
   }
 
-  // Hàm kanjiSimilarity với debug
-  function kanjiSimilarity(strokesA, strokesB) {
+
+
+  function hungarianSimilarity(strokesA, strokesB, rawA, rawB) {
     const n = strokesA.length;
     const m = strokesB.length;
     const size = Math.max(n, m);
 
-    const simMatrix = [];
-    for (let i = 0; i < size; i++) {
-      simMatrix[i] = [];
-      for (let j = 0; j < size; j++) {
-        if (i < n && j < m) {
-          simMatrix[i][j] = strokeSimilarity(strokesA[i], strokesB[j]);
-        } else {
-          simMatrix[i][j] = 0; // penalty cho fake stroke
-        }
-      }
-    }
+    // Tạo ma trận chi phí (chi phí = 1 - similarity)
+    let cost = Array.from({ length: size }, () => Array(size).fill(0.5));
 
-    console.log("kanjiSimilarity: similarity matrix:");
-    console.table(simMatrix);
-
-    const matching = hungarian(simMatrix);
-
-    let totalSim = 0;
     for (let i = 0; i < n; i++) {
-      const j = matching[i];
-      if (j !== -1 && j < m) {
-        totalSim += simMatrix[i][j];
+      for (let j = 0; j < m; j++) {
+        const sim = strokeSimilarity(strokesA[i], strokesB[j], rawA[i], rawB[j]);
+        cost[i][j] = 1 - sim;
       }
     }
 
-    const normalizedSim = totalSim / size;
-    console.log("kanjiSimilarity: total similarity =", totalSim);
-    console.log("kanjiSimilarity: normalized similarity =", normalizedSim);
+    // Hungarian algorithm trên ma trận cost
+    const assignment = hungarianAlgorithm(cost);
 
-    return normalizedSim;
+    // Tính tổng similarity
+    let totalSim = 0;
+    for (const [i, j] of assignment) {
+      totalSim += 1 - cost[i][j]; // similarity
+    }
+
+    return totalSim / size; // chuẩn hóa về 0–1
   }
 
-  //======================================
+  function kanjiSimilarity(strokesA, strokesB, rawA, rawB) {
+    const groupsA = groupStrokes(strokesA, rawA);
+    const groupsB = groupStrokes(strokesB, rawB);
+
+    console.log("groupsA:", groupsA);
+    console.log("groupsB:", groupsB);
+
+    let totalSim = 0;
+    let totalGroups = 0;
+    const dirs = ['horizontal', 'vertical', 'diagonal_up', 'diagonal_down'];
+
+    for (const g of dirs) {
+      const groupA = groupsA[g];
+      const groupB = groupsB[g];
+
+      // Nếu cả hai group rỗng → bỏ qua
+      if (groupA.strokes.length === 0 && groupB.strokes.length === 0) continue;
+
+      const sim = hungarianSimilarity(
+        groupA.strokes, groupB.strokes,
+        groupA.raw, groupB.raw
+      );
+
+      totalSim += sim;
+      totalGroups++;
+    }
+    return totalGroups > 0 ? totalSim / totalGroups : 0;
+  }
+
+
+
+
+
+  
+
+
+
   // controls
   document.getElementById('undo').addEventListener('click', ()=>{ raw.pop(); processPipeline(); drawAll(); });
   document.getElementById('clear').addEventListener('click', ()=>{ raw.length=0; dpStrokes.length=0; processed.length=0; outputEl.textContent='Output'; drawAll(); });
@@ -559,67 +618,22 @@
   document.getElementById('recognize').addEventListener('click', ()=>{
     const json = dpStrokes.map(st => st.map(p => [+p.x.toFixed(6), +p.y.toFixed(6)]));
     // outputEl.textContent = getTop5Kanji(json);
-    const { dp: strokeA, raw: rawA }  = svgPathToJson(
-      "M13,50.5c1.75,0.62,4,0.5,5,0.25S26.79,47.6,28.25,47c2.75-1.12,3.66,0.14,2.25,3c-6.62,13.38-6.75,8.88,0.25,18.5c1.36,1.86,1.62,2.62-0.5,4.75C28.87,74.63,22.88,79.62,20,82");
-    strokeB = json;
-    console.log("strokeA[0]:", strokeA[0]);
-    console.log("strokeB[0]", strokeB[0]);
-    outputEl.textContent = strokeSimilarity(strokeA[0], strokeB[0], rawA, raw);
+    const { dp: kanjiA, raw: normalizedRawA }  = svgPathToJson(
+      "M16.63,34.33c1.52,0.47,5.31,0.58,6.82,0.47c17.55-1.3,44.3-4.8,67.11-6c2.53-0.13,4.05,0.22,5.31,0.46M52.57,20.75c1.23,0.52,2.22,3.89,2.46,4.93c0.25,1.04-0.16,67.83-0.41,74.32");
+    let kanjiB = json;
+    console.log("kanjiA:", kanjiA);
+    console.log("kanjiB", kanjiB);
+    //outputEl.textContent = strokeSimilarity(kanjiA[0], kanjiB[0], normalizedRawA[0], normalizedRaw[0]);
+    outputEl.textContent = kanjiSimilarity(kanjiA, kanjiB, normalizedRawA, normalizedRaw);
     });
 
   // initial draw
   drawAll();
+
 })();
-</script>
-
-<script>
-  async function getTop5Kanji(jsonUser) {
-    try {
-      console.log("Start fetching kanjivg.xml");
-
-      const kanjivgText = await fetch('kanjivg.xml').then(r => r.text());
-      console.log("Fetched kanjivg.xml, length:", kanjivgText.length);
-
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(kanjivgText, "application/xml");
-
-      const kanjiElems = xmlDoc.querySelectorAll("kanji");
-      console.log("Number of kanji elements:", kanjiElems.length);
-
-      const results = [];
-
-      for (const kanjiElem of kanjiElems) {
-        const id = kanjiElem.getAttribute("id");
-        elementChar = kanjiElem.querySelector("g").getAttribute("kvg:element");
-        console.log("Processing kanji:", id, elementChar);
-
-        const paths = kanjiElem.getElementsByTagName("path");
-        let combinedD = "";
-        for (const p of paths) {
-          const d = p.getAttribute("d");
-          if (d) combinedD += d;
-        }
-        console.log("Combined d length:", combinedD.length);
-
-        const kanjiB = svgPathToJson(combinedD, 109, 0.5);
-        console.log("kanjiB strokes:", kanjiB.length);
-
-        const similarity = kanjiSimilarity(jsonUser, kanjiB);
-        console.log("Similarity:", similarity);
-
-        results.push({id, element: elementChar, similarity});
-      }
-
-      results.sort((a,b)=>b.similarity - a.similarity);
-      console.log("Top 5 results:", results.slice(0,5));
-      return results.slice(0,5);
-
-    } catch (err) {
-      console.error("Error in getTop5Kanji:", err);
-      return [];
-    }
-  }
 </script>
 
 </body>
 </html>
+
+
