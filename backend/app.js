@@ -8,6 +8,8 @@ import vocabularyRoutes from './routes/vocabulary.routes.js';
 import kanjiRoutes from './routes/kanji.routes.js';
 import userRoutes from './routes/user.routes.js';
 
+import { connectDB } from './database/mongodb.js';
+
 const app = express();
 
 app.use('/auth', authRoutes);
@@ -19,6 +21,8 @@ app.get('/', (req, res) => {
   res.send('Hello!');
 });
 
-app.listen(process.env.PORT, () => {
+app.listen(process.env.PORT, async () => {
   console.log(`API is running on http://localhost:${process.env.PORT}`);
+
+  await connectDB();
 });
