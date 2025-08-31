@@ -5,6 +5,23 @@ xml_file = r"C:\Users\Admin\Documents\JapaneseLearning\data\kanjivg.xml"
 json_file = "kanjivg.json"
 kanji_list_file = r"C:\Users\Admin\Documents\JapaneseLearning\data\kanji_list.txt"
 
+def parse_kanji_element(element):
+    kvg_element = element.attrib.get(f"{{{ns_uri}}}element")
+    kvg_type = element.attrib.get(f"{{{ns_uri}}}type")
+
+    # Đệ quy vào tất cả children
+    children = [c for c in (parse_kanji_element(child) for child in element) if c]
+
+    if kvg_element:
+        return {"part": kvg_element, "children": children}
+    elif kvg_type:
+        return {"part": kvg_type, "children": []}
+    elif children:
+        # <g> không có element/type nhưng có con hợp lệ
+        return {"part": None, "children": children}
+    else:
+        return None
+
 # Đọc danh sách kanji cần giữ
 with open(kanji_list_file, "r", encoding="utf-8") as f:
     kanji_list = set(line.strip() for line in f if line.strip())
@@ -43,7 +60,8 @@ for kanji in root.findall('kanji'):
     kanji_list_output.append({
         "kanji": kanji_char,
         "strokes": len(path_elements),
-        "d": d_list
+        "d": d_list,
+        "children": [c for c in (parse_kanji_element(child) for child in g_tag) if c]
     })
     count_added += 1
     print(f"{kanji_id}: Thêm chữ '{kanji_char}' với {len(path_elements)} nét")

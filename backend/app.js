@@ -12,6 +12,7 @@ import userRoutes from './routes/user.routes.js';
 import { connectDB } from './database/mongodb.js';
 
 import errorMiddleware from './middlewares/error.middleware.js';
+import {run} from './database/import-kanji.js';
 
 const app = express();
 
@@ -33,5 +34,7 @@ app.get('/', (req, res) => {
 app.listen(process.env.PORT, async () => {
   console.log(`API is running on http://localhost:${process.env.PORT}`);
 
-  await connectDB();
+  await connectDB(); //session commitTransaction() vào DB đang chạy
+  //await run();
+  
 });

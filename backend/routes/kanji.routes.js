@@ -1,19 +1,12 @@
 import express from 'express';
+import * as kanjiController from '../controllers/kanji.controller.js';
+
 const router = express.Router();
 
-router.get('/', (req, res) => {
-  res.send('Danh sách tất cả kanji');
-});
+router.get('/', kanjiController.getAllKanji);
 
-router.get('/:character', (req, res) => {
-  const kanji = req.params.character;
-  res.send(`Chi tiết kanji: ${kanji}`);
-});
+router.get('/filter', kanjiController.filterKanji);
 
-// Tìm kiếm theo keyword
-router.get('/search', (req, res) => {
-  const keyword = req.query.q;
-  res.send(`Kết quả tìm kiếm kanji: ${keyword}`);
-});
+router.get('/:character', kanjiController.getKanjiDetail);
 
 export default router;

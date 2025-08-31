@@ -10,41 +10,21 @@ const kanjiSchema = new mongoose.Schema({
         message: props => `${props.value} is not a single kanji character`
     }
   },
-  heisig_en: { 
-    type: String, 
-    required: true, 
-    unique: true 
-  },
-  jlpt: {
-    type: Number,
-    enum: [1, 2, 3, 4, 5],
-    default: null
-  },
-  grade: { 
-    type: Number, 
-    required: true,
-    min: 1,
-    max: 8
-  },
+  heisig_en: { type: String, required: true, unique: true },
+  jlpt: {type: Number, enum: [1, 2, 3, 4, 5], default: null },
+  grade: { type: Number, required: true, min: 1, max: 8 },
   kun_readings: [String],
   on_readings: [String],
   name_readings: [String],
   english_meanings: [String],
-  strokes: { 
-    type: Number, 
-    required: true 
-  },
-  d: { 
-    type: [String], 
-    required: true, 
-    unique: true 
-  },
+  strokes: { type: Number, required: true },
+  d: { type: [String], required: true },
+  children: [{
+    part: { type: String },
+    children: [] }],
   six_principles: { type: String },
   han_viet: [{
-    reading: { 
-        type: String, 
-        required: true 
-    },
+    reading: { type: String, required: true },
     common_meanings: [String],
     cited_meanings: [String],
     thieu_chuu_meanings: [String],

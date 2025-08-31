@@ -12,9 +12,12 @@
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.1",
     "express": "~4.16.1",
+    "ioredis": "^5.7.0",
     "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.19.0",
-    "mongoose": "^8.18.0"
+    "mongoose": "^8.18.0",
+    "nodemailer": "^7.0.6",
+    "wanakana": "^5.3.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
