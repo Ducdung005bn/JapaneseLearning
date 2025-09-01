@@ -10,6 +10,7 @@ import errorMiddleware from './middlewares/error.middleware.js';
 import {importKanji} from './database/import-kanji.js';
 import {importVocabulary} from './database/import-vocabulary.js';
 import arcjetMiddleware from './middlewares/arcjet.middleware.js';
+import cors from 'cors';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 app.use(cookieParser());
 app.use(arcjetMiddleware);
+app.use(cors());
 
 app.use('/auth', authRoutes);
 app.use('/vocabulary', vocabularyRoutes);
