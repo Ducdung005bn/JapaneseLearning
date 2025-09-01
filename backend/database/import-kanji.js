@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 
-export const run = async () => {
+export const importKanji = async () => {
   await connectDB();
 
   const data = JSON.parse(fs.readFileSync(path.resolve('../data/combined_data.json'), 'utf-8'));

@@ -67,11 +67,20 @@ export const register = async (req, res, next) => {
       throw new Error('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
     }
 
-    if (!personalInformation.fullName ||
-        !personalInformation.gender ||
-        !personalInformation.dateOfBirth ||
-        personalInformation.jlptLevel === undefined) {
-      throw new Error('Missing required personal information');
+    if (personalInformation['fullName'].trim() === '') {
+        throw new Error('fullName is required and must be a non-empty string');
+    }
+
+    if (!['male','female','other'].includes(personalInformation['gender'])) {
+        throw new Error('gender must be one of "male", "female", "other"');
+    }
+
+    if (isNaN(new Date(personalInformation['dateOfBirth']).getTime())) {
+        throw new Error('dateOfBirth must be a valid date');
+    }
+
+    if (![0,1,2,3,4,5].includes(Number(personalInformation['jlptLevel']))) {
+        throw new Error('jlptLevel must be a number between 0 and 5');
     }
 
     const salt = await bcrypt.genSalt(10);

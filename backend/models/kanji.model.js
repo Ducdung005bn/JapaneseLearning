@@ -21,7 +21,8 @@ const kanjiSchema = new mongoose.Schema({
   d: { type: [String], required: true },
   children: [{
     part: { type: String },
-    children: [] }],
+    children: [],
+    _id: false }],
   six_principles: { type: String },
   han_viet: [{
     reading: { type: String, required: true },
@@ -30,7 +31,8 @@ const kanjiSchema = new mongoose.Schema({
     thieu_chuu_meanings: [String],
     tran_van_chanh_meanings: [String],
     nguyen_quoc_hung_meanings: [String],
-    compounds: [String]
+    compounds: [String],
+    _id: false
   }]
 });
 
