@@ -1,4 +1,4 @@
-import KanjiSearch from "./pages/Kanji";
+import KanjiSearch from "./pages/KanjiSearch.jsx";
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,6 +10,7 @@ import {
   Users,
   Wrench,
   Info,
+  
   ChevronRight,
   ChevronLeft,
   Sun,

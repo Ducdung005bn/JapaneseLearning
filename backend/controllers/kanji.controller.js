@@ -27,9 +27,13 @@ export const filterKanji = async (req, res) => {
     // Tạo filter trống
     let filter = {};
 
-    // Tìm theo Hán-Việt
+    // Tìm theo Hán-Việt / Heisig
     if (han_viet) {
-      filter['han_viet.reading'] = { $regex: han_viet, $options: 'i' };
+      const regex = { $regex: han_viet, $options: 'i' };
+      filter.$or = [
+        { 'han_viet.reading': regex },
+        { heisig_en: regex }
+      ];
     }
 
     // Tìm theo bộ thủ (trong children.part)
