@@ -11,7 +11,7 @@
   - **Radical (部首)**  
   - **Heisig keyword**
 
-![alt text](frontend\src\assets\kanjiSearch.png)
+![alt text](https://github.com/Ducdung005bn/JapaneseLearning/blob/main/frontend/src/assets/kanjiSearch.png)
 
 ### Kanji Detail View
 - JLPT level, Grade, Stroke count, Heisig, English meanings, Six principles of chinese character.
@@ -26,7 +26,7 @@
 ### Radical Tree View
 - Expand/collapse radicals in **TreeSection.jsx**.
 
-![alt text](frontend\src\assets\kanjiDetail.png)
+![alt text](https://github.com/Ducdung005bn/JapaneseLearning/blob/main/frontend/src/assets/kanjiDetail.png)
 
 ### Vocabulary Search
 
@@ -34,10 +34,7 @@
 - Review with various types of quizes.
 - Open a class and give attenders your own assignments, with deadline announcement sent directly to attenders' email.
 
-
-
-
----
+## Tech Stack
 
 ### Frontend
 - **React + Vite** – Fast and modern frontend development environment.
