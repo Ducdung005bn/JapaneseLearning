@@ -153,16 +153,16 @@ export default function KanjiSearch({setting}) {
                 <div className="col-span-1 flex items-center justify-center font-bold text-3xl">
                   {k.kanji}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
                   {k.han_viet.map(h => h.reading).join(" ・ ").toUpperCase()}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
                   {k.heisig_en}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
                   {k.on_readings.join(" ・ ")}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
                   {k.kun_readings.join(" ・ ")}
                 </div>
               </div>
