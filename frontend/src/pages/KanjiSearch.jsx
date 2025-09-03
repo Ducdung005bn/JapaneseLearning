@@ -81,8 +81,8 @@ export default function KanjiSearch() {
   return (
     <div className="flex flex-col gap-y-4 w-full max-w-6xl mx-auto"> 
       {/* Form tìm kiếm */}
-      <section className="w-full mx-auto p-2 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-3">
+      <section className="w-full mx-auto p-1 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-1">
           <input
             type="text"
             placeholder="KANJI"
@@ -97,31 +97,31 @@ export default function KanjiSearch() {
                        bg-transparent text-3xl font-bold text-center text-slate-800 
                        focus:outline-none focus:ring-2 focus:ring-green-400"
           />
-          <div className="flex flex-col gap-2">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1">
+            <div className="grid grid-cols-2 gap-1">
               <input type="text" placeholder="HAN VIET / HEISIG"
                 value={hanVietInput}
                 onChange={handleFilterChange(setHanVietInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-sm text-slate-800"
+                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
               />
               <input type="text" placeholder="RADICAL"
                 value={radicalInput}
                 onChange={handleFilterChange(setRadicalInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-sm text-slate-800"
+                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
               />
               <input type="text" placeholder="ON YOMI"
                 value={onYomiInput}
                 onChange={handleFilterChange(setOnYomiInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-sm text-slate-800"
+                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
               />
               <input type="text" placeholder="KUN YOMI"
                 value={kunYomiInput}
                 onChange={handleFilterChange(setKunYomiInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-sm text-slate-800"
+                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
               />
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function KanjiSearch() {
               <p className="mt-2 text-emerald-600 font-semibold">Loading...</p>
             </div>
           ) : kanjiList.length === 0 ? (
-            <p className="text-center text-slate-600 py-6">No results found</p>
+            <p className="text-xl text-center text-slate-600 py-6">No results found</p>
           ) : (
             kanjiList.map((k, idx) => (
               <div
@@ -152,16 +152,16 @@ export default function KanjiSearch() {
                 <div className="col-span-1 flex items-center justify-center font-bold text-3xl">
                   {k.kanji}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-sm">
+                <div className="col-span-1 flex items-center justify-center text-xl">
                   {k.han_viet.map(h => h.reading).join(" ・ ").toUpperCase()}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-sm">
+                <div className="col-span-1 flex items-center justify-center text-xl">
                   {k.heisig_en}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-sm">
+                <div className="col-span-1 flex items-center justify-center text-xl">
                   {k.on_readings.join(" ・ ")}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-sm">
+                <div className="col-span-1 flex items-center justify-center text-xl">
                   {k.kun_readings.join(" ・ ")}
                 </div>
               </div>

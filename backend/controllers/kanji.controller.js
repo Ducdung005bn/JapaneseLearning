@@ -3,7 +3,7 @@ import wanakana from 'wanakana'; //hiragana katakana conversion
 
 export const getAllKanji = async (req, res) => {
   try {
-    const kanjiList = await Kanji.find({}, 'kanji'); // chỉ lấy chữ kanji
+    const kanjiList = await Kanji.find();
     res.json(kanjiList);
   } catch (err) {
     res.status(500).json({ error: err.message });

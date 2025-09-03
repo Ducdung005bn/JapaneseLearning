@@ -31,7 +31,7 @@ for kanji, api_info in kanjiapi_data.items():
         "kun_readings": api_info.get("kun_readings", []),
         "on_readings": api_info.get("on_readings", []),
         "name_readings": api_info.get("name_readings", []),
-        "english_meanings": api_info.get("meanings", []),
+        "english_meanings": api_info.get("english_meanings", []),
         "strokes": kanjivg_data.get(kanji, {}).get("strokes"),
         "d": kanjivg_data.get(kanji, {}).get("d", []),
         "children": kanjivg_data.get(kanji, {}).get("children", []),

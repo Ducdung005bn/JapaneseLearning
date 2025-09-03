@@ -242,6 +242,7 @@
 
   //Transfer SVG path d into JSON strokes
   function svgPathToJson(d, viewBox = 109, eps = epsVal) {
+
     if (!d || d.trim() === '') return [];
 
     let rawTemp = [];
@@ -629,7 +630,7 @@
 
         let results = [];
         for (const [kanjiChar, kanjiData] of Object.entries(kanjivgJson)) {
-          const dStr = kanjiData.d;       // chuỗi d
+          const dStr = kanjiData.d.join("");       // chuỗi d
           const strokes = kanjiData.strokes; // số nét
 
           // Nếu chênh lệch số nét > 1 thì bỏ qua
@@ -637,14 +638,15 @@
 
           const { dp: kanjiB, raw: normalizedRawB } = svgPathToJson(dStr);
           const sim = kanjiSimilarity(json, kanjiB, raw, normalizedRawB);
-          results.push({ kanjiChar, similarity: sim });
-          console.log(`Processed ${kanjiChar}: similarity = ${sim.toFixed(3)}, strokes = ${strokes}`);
+          const kanji = kanjiData.kanji;
+          results.push({ kanji, similarity: sim });
+          console.log(`Processed ${kanji}: similarity = ${sim.toFixed(3)}, strokes = ${strokes}`);
         }
 
         results.sort((a, b) => b.similarity - a.similarity);
         const top5 = results.slice(0, 5);
 
-        outputEl.textContent = top5.map(r => `${r.kanjiChar}: ${r.similarity.toFixed(3)}`).join('\n');
+        outputEl.textContent = top5.map(r => `${r.kanji}: ${r.similarity.toFixed(3)}`).join('\n');
       })
       .catch(err => console.error(err));
   });

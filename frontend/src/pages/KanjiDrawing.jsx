@@ -191,7 +191,7 @@ export default function KanjiDrawing({ selectedKanji }) {
           <div className="flex gap-2">
             <button
               onClick={() => setResetKey((k) => k + 1)}
-              className="px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500"
+              className="text-xl px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500"
             >
               RESET
             </button>
@@ -200,7 +200,7 @@ export default function KanjiDrawing({ selectedKanji }) {
               <select
                 value={strokeColor}
                 onChange={(e) => setStrokeColor(e.target.value)}
-                className="px-3 py-1 rounded-lg bg-white-500 text-black"
+                className="text-xl px-3 py-1 rounded-lg bg-white-500 text-black"
               >
                 {strokeColors.map((c) => (
                   <option key={c} value={c}>
@@ -214,12 +214,10 @@ export default function KanjiDrawing({ selectedKanji }) {
       )}
 
       {/* =================== Draw Mode =================== */}
-{mode === "draw" && (
+      {mode === "draw" && (
         <>
           <canvas
             ref={canvasRef}
-            width={100}
-            height={100}
             className="border border-gray-300 rounded-lg bg-white cursor-crosshair"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
@@ -230,13 +228,13 @@ export default function KanjiDrawing({ selectedKanji }) {
           <div className="flex gap-2 mt-2 items-center">
             <button
               onClick={handleClear}
-              className="px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500"
+              className="text-xl px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500"
             >
               CLEAR
             </button>
             <button
               onClick={handleUndo}
-              className="px-3 py-1 rounded-lg bg-yellow-400 text-white hover:bg-yellow-500"
+              className="text-xl px-3 py-1 rounded-lg bg-yellow-400 text-white hover:bg-yellow-500"
             >
               UNDO
             </button>
@@ -244,7 +242,7 @@ export default function KanjiDrawing({ selectedKanji }) {
               <select
                 value={strokeColor}
                 onChange={(e) => setStrokeColor(e.target.value)}
-                className="px-3 py-1 rounded-lg bg-white-500 text-black"
+                className="text-xl px-3 py-1 rounded-lg bg-white-500 text-black"
               >
                 {strokeColors.map((c) => (
                   <option key={c} value={c}>

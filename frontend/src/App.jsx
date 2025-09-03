@@ -71,7 +71,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSidebarOpen((s) => !s)}
-                className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium border border-white/40 bg-white/60 hover:bg-white/80 transition shadow-sm"
+                className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xl font-medium border border-white/40 bg-white/60 hover:bg-white/80 transition shadow-sm"
                 aria-label="Toggle sidebar"
               >
                 {sidebarOpen ? (
@@ -106,7 +106,7 @@ export default function App() {
                 transition={{ type: "tween", duration: 0, ease: "easeOut" }}
                 className="md:sticky md:top-24 h-max"
               >
-                <div className="w-full md:w-56 rounded-3xl border border-slate-200/60 bg-slate-50/70 backdrop-blur-xl shadow-xl shadow-slate-300/20">
+                <div className="w-full text-xl md:w-56 rounded-3xl border border-slate-200/60 bg-slate-50/70 backdrop-blur-xl shadow-xl shadow-slate-300/20">
                   <div className="p-3 sm:p-4">
                     <nav className="mt-3 sm:mt-4 flex flex-col gap-2">
                       {filteredPages.map(({ key, icon: Icon }) => {
@@ -160,7 +160,7 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        <footer className="py-8 text-center text-sm text-slate-600/80">
+        <footer className="py-8 text-center text-xl text-slate-600/80">
           If you have any questions, suggestions, or feedback, please feel free to contact me at 23020655@vnu.edu.vn.
         </footer>
       </div>

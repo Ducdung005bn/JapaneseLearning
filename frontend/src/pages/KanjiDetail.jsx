@@ -1,171 +1,131 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import axios from "axios";
 import KanjiDrawing from "./KanjiDrawing.jsx";
 
 export default function KanjiDetail({ selectedKanji, setSelectedKanji }) {
-  const [showAllMeanings, setShowAllMeanings] = useState(false);
-  const [compounds, setCompounds] = useState([]);
-  const [showCompounds, setShowCompounds] = useState(false);
-  const svgRef = useRef(null);
-
-  useEffect(() => {
-    if (!selectedKanji?.d || !svgRef.current) return;
-    const svg = svgRef.current;
-    const paths = svg.querySelectorAll("path");
-
-    paths.forEach((path, index) => {
-      const length = path.getTotalLength();
-      path.style.strokeDasharray = length;
-      path.style.strokeDashoffset = length;
-
-      path.animate(
-        [
-          { strokeDashoffset: length },
-          { strokeDashoffset: 0 }
-        ],
-        {
-          duration: 500,
-          fill: "forwards",
-          easing: "ease-in-out",
-          delay: (index + 1) * 500
-        }
-      );
-    });
-  }, [selectedKanji]);
-
-  const handleLoadCompounds = async () => {
-    if (compounds.length > 0) {
-      setShowCompounds(!showCompounds);
-      return;
-    }
-    try {
-      const res = await fetch(`http://localhost:3000/kanji/${selectedKanji.kanji}/compounds`);
-      const data = await res.json();
-      setCompounds(data);
-      setShowCompounds(true);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const [openOn, setOpenOn] = useState(false);
+  const [openKun, setOpenKun] = useState(false);
+  const [vocabularyList, setVocabularyList] = useState({ on_words: [], kun_words: [] });
 
   if (!selectedKanji) return null;
 
-  return (
-  <div>
-    <div className="flex gap-2">
-      <section class="w-2/3 mx-auto p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
-          <button
-              onClick={() => setSelectedKanji(null)}
-              className="px-3 py-1 rounded-lg bg-red-300 text-white hover:bg-red-600"
-            >
-              Back
-          </button>
-      </section>
+  const handleFindVocabulary = async () => {
+    console.log('Finding vocabulary for', selectedKanji.kanji);
+    if ((vocabularyList.on_words.length > 0) || (vocabularyList.kun_words.length > 0)) return;
+
+    try {
+      const body = {
+        kanji: selectedKanji.kanji || undefined,
+        on_readings: selectedKanji.on_readings || undefined,
+        kun_readings: selectedKanji.kun_readings || undefined,
+      };
+      const res = await axios.post("http://localhost:3000/vocabulary/findVocabulary", body);
+      setVocabularyList(res.data);
+    } catch (err) {
       
-      <KanjiDrawing selectedKanji={selectedKanji} />
-    </div>
+    } 
+  };
 
-
-    <section className="w-full mx-auto p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
-      {/* --- Top Section: 2 Columns --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Left Column: Info */}
-        <div className="flex flex-col gap-2 text-slate-800">
-          <h2 className="text-5xl font-bold">{selectedKanji.kanji}</h2>
-          <p><strong>JLPT:</strong> {selectedKanji.jlpt ?? "N/A"}</p>
-          <p><strong>Grade:</strong> {selectedKanji.grade}</p>
-          <p><strong>Strokes:</strong> {selectedKanji.strokes}</p>
-          <p><strong>Heisig:</strong> {selectedKanji.heisig_en}</p>
-          <p>
-            <strong>English meanings:</strong>{" "}
-            {selectedKanji.english_meanings.join(", ")}
-          </p>
-        </div>
-
-        {/* Right Column: SVG Animation */}
-        <div className="flex justify-center items-center">
-          <svg
-            ref={svgRef}
-            viewBox="0 0 109 109"
-            className="w-48 h-48 text-black"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+  return (
+  <div className="flex gap-2">
+    <section className="flex flex-col gap-2 w-2/3 mx-auto p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
+        <button
+            onClick={() => setSelectedKanji(null)}
+            className="text-xl px-3 py-1 max-w-[70px] rounded-lg bg-red-300 text-white hover:bg-red-600"
           >
-            {selectedKanji.d.map((pathData, idx) => (
-              <path key={idx} d={pathData} />
-            ))}
-          </svg>
+            Back
+        </button>
+        
+        <div className="text-xl flex flex-wrap gap-x-8 gap-y-2">
+          {selectedKanji.jlpt && (
+            <p className="text-xl">
+              JLPT: <span className="font-bold">N{selectedKanji.jlpt}</span>
+            </p>
+          )}
+
+          {selectedKanji.grade && (
+            <p className="text-xl">
+              Grade: <span className="font-bold">{selectedKanji.grade}</span>
+            </p>
+          )}
+
+          {selectedKanji.strokes && (
+            <p className="text-xl">
+              Strokes: <span className="font-bold">{selectedKanji.strokes}</span>
+            </p>
+          )}
+
+          {selectedKanji.heisig_en && (
+            <p className="text-xl">
+              Heisig: <span className="font-bold">{selectedKanji.heisig_en}</span>
+            </p>
+          )}
+
+          {selectedKanji.english_meanings && selectedKanji.english_meanings.length > 0 && (
+            <p className="text-xl">
+              English meaning: <span className="font-bold">{selectedKanji.english_meanings.join(" ・ ")}</span> 
+            </p>
+          )}
+
+          {selectedKanji.six_principles && (
+            <p className="text-xl">
+              Principle: <span className="font-bold">{selectedKanji.six_principles}</span> 
+            </p>
+          )}
         </div>
-      </div>
 
-      {/* --- Han Viet & Meanings --- */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">Hán Việt</h3>
-        <ul className="list-disc pl-6">
-          {selectedKanji.han_viet.map((h, idx) => (
-            <li key={idx}>
-              <span className="font-bold">{h.reading}</span>
-              {h.common_meanings?.length > 0 && (
-                <span> - {h.common_meanings.join(", ")}</span>
-              )}
-              {showAllMeanings && (
-                <div className="pl-4 text-sm text-slate-700">
-                  {h.cited_meanings?.length > 0 && (
-                    <p><strong>Cited:</strong> {h.cited_meanings.join(", ")}</p>
-                  )}
-                  {h.thieu_chuu_meanings?.length > 0 && (
-                    <p><strong>Thiều Chửu:</strong> {h.thieu_chuu_meanings.join(", ")}</p>
-                  )}
-                  {h.tran_van_chanh_meanings?.length > 0 && (
-                    <p><strong>Trần Văn Chánh:</strong> {h.tran_van_chanh_meanings.join(", ")}</p>
-                  )}
-                  {h.nguyen_quoc_hung_meanings?.length > 0 && (
-                    <p><strong>Nguyễn Quốc Hùng:</strong> {h.nguyen_quoc_hung_meanings.join(", ")}</p>
-                  )}
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
-        <button
-          className="mt-2 px-3 py-1 text-sm bg-emerald-500 text-white rounded hover:bg-emerald-600"
-          onClick={() => setShowAllMeanings(!showAllMeanings)}
+    <div className="space-y-4">
+      {/* Âm On */}
+      <div className="border p-3 rounded-lg bg-white shadow">
+        <div 
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => {setOpenOn(!openOn); handleFindVocabulary();}}
         >
-          {showAllMeanings ? "Ẩn bớt" : "Xem thêm nghĩa"}
-        </button>
-      </div>
+          <span className="font-semibold text-lg">ON YOMI: {selectedKanji.on_readings.join(", ")}</span>
+          <span className="text-xl transform transition-transform duration-200"
+                style={{ rotate: openOn ? '90deg' : '0deg' }}>▶</span>
+        </div>
 
-      {/* --- Readings --- */}
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold mb-2">Đọc âm</h3>
-        <p><strong>On:</strong> {selectedKanji.on_readings.join(", ")}</p>
-        <p><strong>Kun:</strong> {selectedKanji.kun_readings.join(", ")}</p>
-        <p><strong>Name:</strong> {selectedKanji.name_readings.join(", ")}</p>
-      </div>
-
-      {/* --- Compounds --- */}
-      <div>
-        <button
-          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-          onClick={handleLoadCompounds}
-        >
-          {showCompounds ? "Ẩn từ ghép" : "Xem từ ghép"}
-        </button>
-        {showCompounds && (
-          <ul className="list-disc pl-6 mt-2">
-            {compounds.length === 0 ? (
-              <li>Không có dữ liệu</li>
-            ) : (
-              compounds.map((c, idx) => (
-                <li key={idx}>{c}</li>
-              ))
-            )}
+        {openOn && vocabularyList.on_words?.length > 0 && (
+          <ul className="mt-2 list-disc list-inside text-sm text-gray-700">
+            {vocabularyList.on_words.map((w, idx) => (
+              <li key={idx}>{w}</li>
+            ))}
           </ul>
         )}
       </div>
+
+      {/* Âm Kun */}
+      <div className="border p-3 rounded-lg bg-white shadow">
+        <div 
+          className="flex justify-between items-center cursor-pointer"
+          onClick={() => {
+            setOpenKun(!openKun); handleFindVocabulary();}}
+        >
+          <span className="font-semibold text-lg">KUN YOMI: {selectedKanji.kun_readings.join(", ")}</span>
+          <span className="text-xl transform transition-transform duration-200"
+                style={{ rotate: openKun ? '90deg' : '0deg' }}>▶</span>
+        </div>
+
+        {openKun && vocabularyList.kun_words?.length > 0 && (
+          <ul className="mt-2 list-disc list-inside text-sm text-gray-700">
+            {vocabularyList.kun_words.map((w, idx) => (
+              <li key={idx}>{w}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+
+
+
+
+
+
+        
     </section>
+    
+    <KanjiDrawing selectedKanji={selectedKanji} />
   </div>
   );
 }
