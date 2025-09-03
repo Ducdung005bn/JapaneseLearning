@@ -1,5 +1,6 @@
 import { set } from "mongoose";
 import { useRef, useState, useEffect } from "react";
+import TreeSection from "./TreeSection";
 
 export default function KanjiDrawing({ selectedKanji }) {
   const [mode, setMode] = useState("animation"); // animation | draw
@@ -152,7 +153,7 @@ export default function KanjiDrawing({ selectedKanji }) {
   };
 
   return (
-    <section className="w-1/3 mx-auto p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg flex flex-col gap-4">
+    <section className="w-1/3 mx-auto p-4 max-w-[325px] rounded-2xl bg-white/50 backdrop-blur-md shadow-lg flex flex-col gap-4">
       
       {/* =================== Mode Selector =================== */}
       <div className="flex gap-2 justify-center mb-2">
@@ -254,8 +255,9 @@ export default function KanjiDrawing({ selectedKanji }) {
           </div>
         </>
       )}
-
-
+      
+      <p className="mx-auto text-lg mt-8 font-bold text-gray-700">CASCADING KANJI VIEW</p>
+      <TreeSection nodes={selectedKanji.children} />
     </section>
   );
 }

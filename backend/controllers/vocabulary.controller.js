@@ -139,7 +139,7 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
     return kun.replace(/[-.]/g, "");
   });
 
-  const onForms = on_readings.map(r => (wanakana.toHiragana(r)));
+  const onForms = on_readings.map(r => (wanakana.toHiragana(r).replace(/[-.]/g, "")));
 
   const kun_words = [];
   const on_words = [];

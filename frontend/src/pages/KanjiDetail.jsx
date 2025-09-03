@@ -1,10 +1,12 @@
 import { useState } from "react";
 import axios from "axios";
 import KanjiDrawing from "./KanjiDrawing.jsx";
+import ReadingSection from "./ReadingSection.jsx";
 
 export default function KanjiDetail({ selectedKanji, setSelectedKanji }) {
   const [openOn, setOpenOn] = useState(false);
   const [openKun, setOpenKun] = useState(false);
+  const [openOtherReading, setOpenOtherReading] = useState(false);
   const [vocabularyList, setVocabularyList] = useState({ on_words: [], kun_words: [] });
 
   if (!selectedKanji) return null;
@@ -75,54 +77,50 @@ export default function KanjiDetail({ selectedKanji, setSelectedKanji }) {
         </div>
 
     <div className="space-y-4">
-      {/* Âm On */}
-      <div className="border p-3 rounded-lg bg-white shadow">
+
+  <ReadingSection
+    title="ON YOMI"
+    readings={selectedKanji.on_readings}
+    words={vocabularyList.on_words}
+    open={openOn}
+    setOpen={setOpenOn}
+    onToggle={handleFindVocabulary}
+  />
+
+  <ReadingSection
+    title="KUN YOMI"
+    readings={selectedKanji.kun_readings}
+    words={vocabularyList.kun_words}
+    open={openKun}
+    setOpen={setOpenKun}
+    onToggle={handleFindVocabulary}
+  />
+
+  <ReadingSection
+    title="OTHER READING"
+    readings={[""]}
+    words={vocabularyList.the_other_words}
+    open={openOtherReading}
+    setOpen={setOpenOtherReading}
+    onToggle={handleFindVocabulary}
+  />
+
+      {/* Cách đọc tên */}
+      {
+        selectedKanji.name_readings && selectedKanji.name_readings.length > 0 && (
+          <div className="border p-3 rounded-lg bg-white shadow">
         <div 
-          className="flex justify-between items-center cursor-pointer"
-          onClick={() => {setOpenOn(!openOn); handleFindVocabulary();}}
+          className="flex justify-between items-center"
         >
-          <span className="font-semibold text-lg">ON YOMI: {selectedKanji.on_readings.join(", ")}</span>
-          <span className="text-xl transform transition-transform duration-200"
-                style={{ rotate: openOn ? '90deg' : '0deg' }}>▶</span>
+          <span className="font-semibold text-lg">
+              <span className="text-red-400">NAME READING</span> {selectedKanji.name_readings.join(" ・ ")}
+          </span>
         </div>
-
-        {openOn && vocabularyList.on_words?.length > 0 && (
-          <ul className="mt-2 list-disc list-inside text-sm text-gray-700">
-            {vocabularyList.on_words.map((w, idx) => (
-              <li key={idx}>{w}</li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      {/* Âm Kun */}
-      <div className="border p-3 rounded-lg bg-white shadow">
-        <div 
-          className="flex justify-between items-center cursor-pointer"
-          onClick={() => {
-            setOpenKun(!openKun); handleFindVocabulary();}}
-        >
-          <span className="font-semibold text-lg">KUN YOMI: {selectedKanji.kun_readings.join(", ")}</span>
-          <span className="text-xl transform transition-transform duration-200"
-                style={{ rotate: openKun ? '90deg' : '0deg' }}>▶</span>
-        </div>
-
-        {openKun && vocabularyList.kun_words?.length > 0 && (
-          <ul className="mt-2 list-disc list-inside text-sm text-gray-700">
-            {vocabularyList.kun_words.map((w, idx) => (
-              <li key={idx}>{w}</li>
-            ))}
-          </ul>
-        )}
-      </div>
+      </div>)
+      }
     </div>
 
 
-
-
-
-
-        
     </section>
     
     <KanjiDrawing selectedKanji={selectedKanji} />

@@ -1,6 +1,7 @@
 import KanjiSearch from "./pages/KanjiSearch.jsx";
 import React, { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import SettingMenu, {getFontSizeClass} from "/src/pages/SettingMenu.jsx";
 import {
   Home,
   BookOpenText,
@@ -34,6 +35,7 @@ const PAGES = [
 export default function App() {
   const [active, setActive] = useState("Home");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
   const [q, setQ] = useState("");
 
   const filteredPages = useMemo(() => {
@@ -43,7 +45,11 @@ export default function App() {
     );
   }, [q]);
 
-  
+  //for SettingMenu
+  const [setting, setSetting] = useState({
+    fontSize: "medium"
+  });
+
   return (
     <div className={"min-h-screen w-full bg-gradient-to-b from-green-50 via-white to-green-50 transition-colors"}>
       {/* Background gradient */}
@@ -71,7 +77,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSidebarOpen((s) => !s)}
-                className="inline-flex items-center gap-2 rounded-2xl px-3 py-2 text-xl font-medium border border-white/40 bg-white/60 hover:bg-white/80 transition shadow-sm"
+                className={`inline-flex items-center gap-2 rounded-2xl px-3 py-2 ${getFontSizeClass(setting.fontSize)} font-medium border border-white/40 bg-white/60 hover:bg-white/80 transition shadow-sm`}
                 aria-label="Toggle sidebar"
               >
                 {sidebarOpen ? (
@@ -86,6 +92,7 @@ export default function App() {
                   </>
                 )}
               </button>
+              <SettingMenu onChange={(s) => setSetting(s)} />
             </div>
           </div>
         </header>
@@ -106,7 +113,7 @@ export default function App() {
                 transition={{ type: "tween", duration: 0, ease: "easeOut" }}
                 className="md:sticky md:top-24 h-max"
               >
-                <div className="w-full text-xl md:w-56 rounded-3xl border border-slate-200/60 bg-slate-50/70 backdrop-blur-xl shadow-xl shadow-slate-300/20">
+                <div className={`w-full ${getFontSizeClass(setting.fontSize)} md:w-56 rounded-3xl border border-slate-200/60 bg-slate-50/70 backdrop-blur-xl shadow-xl shadow-slate-300/20`}>
                   <div className="p-3 sm:p-4">
                     <nav className="mt-3 sm:mt-4 flex flex-col gap-2">
                       {filteredPages.map(({ key, icon: Icon }) => {
@@ -155,12 +162,12 @@ export default function App() {
             </AnimatePresence>
 
             {/* Content area placeholder (not implemented) */}
-            <KanjiSearch />
+            <KanjiSearch setting={setting}/>
           </div>
         </main>
 
         {/* Footer */}
-        <footer className="py-8 text-center text-xl text-slate-600/80">
+        <footer className={`py-8 text-center ${getFontSizeClass(setting.fontSize)} text-slate-600/80`}>
           If you have any questions, suggestions, or feedback, please feel free to contact me at 23020655@vnu.edu.vn.
         </footer>
       </div>

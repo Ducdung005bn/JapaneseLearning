@@ -1,8 +1,9 @@
 import { useState } from "react";
 import axios from "axios";
 import KanjiDetail from "./KanjiDetail.jsx";
+import { getFontSizeClass } from "./SettingMenu.jsx";
 
-export default function KanjiSearch() {
+export default function KanjiSearch({setting}) {
   const [kanjiInput, setKanjiInput] = useState("");
   const [hanVietInput, setHanVietInput] = useState("");
   const [radicalInput, setRadicalInput] = useState("");
@@ -103,25 +104,25 @@ export default function KanjiSearch() {
                 value={hanVietInput}
                 onChange={handleFilterChange(setHanVietInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
               />
               <input type="text" placeholder="RADICAL"
                 value={radicalInput}
                 onChange={handleFilterChange(setRadicalInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
               />
               <input type="text" placeholder="ON YOMI"
                 value={onYomiInput}
                 onChange={handleFilterChange(setOnYomiInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
               />
               <input type="text" placeholder="KUN YOMI"
                 value={kunYomiInput}
                 onChange={handleFilterChange(setKunYomiInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className="px-3 py-2 rounded-lg border border-black-500 text-xl text-slate-800"
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
               />
             </div>
           </div>
@@ -140,7 +141,7 @@ export default function KanjiSearch() {
               <p className="mt-2 text-emerald-600 font-semibold">Loading...</p>
             </div>
           ) : kanjiList.length === 0 ? (
-            <p className="text-xl text-center text-slate-600 py-6">No results found</p>
+            <p className={`${getFontSizeClass(setting.fontSize)} text-center text-slate-600 py-6`}>No results found</p>
           ) : (
             kanjiList.map((k, idx) => (
               <div
@@ -152,16 +153,16 @@ export default function KanjiSearch() {
                 <div className="col-span-1 flex items-center justify-center font-bold text-3xl">
                   {k.kanji}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-xl">
+                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
                   {k.han_viet.map(h => h.reading).join(" ・ ").toUpperCase()}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-xl">
+                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
                   {k.heisig_en}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-xl">
+                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
                   {k.on_readings.join(" ・ ")}
                 </div>
-                <div className="col-span-1 flex items-center justify-center text-xl">
+                <div className={`col-span-1 flex items-center justify-center ${fontSizeClass}`}>
                   {k.kun_readings.join(" ・ ")}
                 </div>
               </div>
