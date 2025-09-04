@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
+import { getFontSizeClass } from "./SettingMenu.jsx";
 
-function TreeNode({ node }) {
+function TreeNode({ node, setting }) {
   const [open, setOpen] = useState(false);
 
   const hasChildren = node.children && node.children.length > 0;
@@ -17,30 +18,30 @@ function TreeNode({ node }) {
         >
             {hasChildren && (
             <span
-            className="text-xl transform transition-transform duration-200"
+            className={`${getFontSizeClass(setting.fontSize, "medium")} transform transition-transform duration-200`}
             style={{ rotate: open ? "90deg" : "0deg" }}
             >
             <ChevronRight />
             </span>
             )}
-            <span className="font-bold text-red-500">{node.part}</span>
+            <span className={`${getFontSizeClass(setting.fontSize, "medium")} font-bold text-red-500`}>{node.part}</span>
         </div>
 
         {open && hasChildren && (
             <div className="ml-6 mt-2">
-            <TreeSection nodes={node.children} />
+            <TreeSection nodes={node.children} setting={setting} />
             </div>
         )}
         </li>
   );
 }
 
-export default function TreeSection({ nodes }) {
+export default function TreeSection({ nodes, setting }) {
   return (
     <section>
       <ul className="space-y-2">
         {nodes.map((node, idx) => (
-          <TreeNode key={idx} node={node} />
+          <TreeNode key={idx} node={node} setting={setting} />
         ))}
       </ul>
     </section>

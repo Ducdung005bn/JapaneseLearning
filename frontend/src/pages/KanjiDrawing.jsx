@@ -1,8 +1,8 @@
-import { set } from "mongoose";
+import { getFontSizeClass } from "./SettingMenu.jsx";
 import { useRef, useState, useEffect } from "react";
 import TreeSection from "./TreeSection";
 
-export default function KanjiDrawing({ selectedKanji }) {
+export default function KanjiDrawing({ selectedKanji, setting }) {
   const [mode, setMode] = useState("animation"); // animation | draw
   const [strokeColor, setStrokeColor] = useState("black");
   const [resetKey, setResetKey] = useState(0);
@@ -158,13 +158,13 @@ export default function KanjiDrawing({ selectedKanji }) {
       {/* =================== Mode Selector =================== */}
       <div className="flex gap-2 justify-center mb-2">
         <button
-          className={`px-3 py-1 rounded-lg ${mode === "animation" ? "bg-blue-400 text-white" : "bg-gray-200"}`}
+          className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg ${mode === "animation" ? "bg-blue-400 text-white" : "bg-gray-200"}`}
           onClick={() => setMode("animation")}
         >
           ANIMATION
         </button>
         <button
-          className={`px-3 py-1 rounded-lg ${mode === "draw" ? "bg-blue-400 text-white" : "bg-gray-200"}`}
+          className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg ${mode === "draw" ? "bg-blue-400 text-white" : "bg-gray-200"}`}
           onClick={() => setMode("draw")}
         >
           DRAW
@@ -192,7 +192,7 @@ export default function KanjiDrawing({ selectedKanji }) {
           <div className="flex gap-2">
             <button
               onClick={() => setResetKey((k) => k + 1)}
-              className="text-xl px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500"
+              className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500`}
             >
               RESET
             </button>
@@ -201,7 +201,7 @@ export default function KanjiDrawing({ selectedKanji }) {
               <select
                 value={strokeColor}
                 onChange={(e) => setStrokeColor(e.target.value)}
-                className="text-xl px-3 py-1 rounded-lg bg-white-500 text-black"
+                className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-white-500 text-black`}
               >
                 {strokeColors.map((c) => (
                   <option key={c} value={c}>
@@ -229,13 +229,13 @@ export default function KanjiDrawing({ selectedKanji }) {
           <div className="flex gap-2 mt-2 items-center">
             <button
               onClick={handleClear}
-              className="text-xl px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500"
+              className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500`}
             >
               CLEAR
             </button>
             <button
               onClick={handleUndo}
-              className="text-xl px-3 py-1 rounded-lg bg-yellow-400 text-white hover:bg-yellow-500"
+              className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-yellow-400 text-white hover:bg-yellow-500`}
             >
               UNDO
             </button>
@@ -243,7 +243,7 @@ export default function KanjiDrawing({ selectedKanji }) {
               <select
                 value={strokeColor}
                 onChange={(e) => setStrokeColor(e.target.value)}
-                className="text-xl px-3 py-1 rounded-lg bg-white-500 text-black"
+                className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-white-500 text-black`}
               >
                 {strokeColors.map((c) => (
                   <option key={c} value={c}>
@@ -256,8 +256,8 @@ export default function KanjiDrawing({ selectedKanji }) {
         </>
       )}
       
-      <p className="mx-auto text-lg mt-8 font-bold text-gray-700">CASCADING KANJI VIEW</p>
-      <TreeSection nodes={selectedKanji.children} />
+      <p className={`mx-auto ${getFontSizeClass(setting.fontSize, "medium")} mt-8 font-bold text-gray-700`}>CASCADING KANJI VIEW</p>
+      <TreeSection nodes={selectedKanji.children} setting={setting}/>
     </section>
   );
 }

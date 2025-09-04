@@ -135,11 +135,60 @@ function mapKanaPerMatchedKanji(vocabularyList, targetKanji) {
 }
 
 function classifyWords(words, targetKanji, kun_readings, on_readings) {
-  const kunForms = kun_readings.map(kun => {
-    return kun.replace(/[-.]/g, "");
-  });
+  const kunForms = kun_readings.map(kun => {   
+    let reading;
+    let kanji;
 
+    if (kun.includes(".")) {
+      // Nếu có ., tách phần trước và phần sau
+      const parts = kun.split(".");
+      kanji = targetKanji + parts[1];
+      reading = parts[0] + parts[1];           
+    } else {
+      kanji = targetKanji; 
+      reading = kun; 
+    }
+
+    return { kanji: kanji, reading: reading };
+  });
+  
   const onForms = on_readings.map(r => (wanakana.toHiragana(r).replace(/[-.]/g, "")));
+
+  // map tenten (dakuten)
+  const dakutenMap = {
+    "か":"が", "き":"ぎ", "く":"ぐ", "け":"げ", "こ":"ご",
+    "さ":"ざ", "し":"じ", "す":"ず", "せ":"ぜ", "そ":"ぞ",
+    "た":"だ", "ち":"ぢ", "つ":"づ", "て":"で", "と":"ど",
+    "は":"ば", "ひ":"び", "ふ":"ぶ", "へ":"べ", "ほ":"ぼ"
+  };
+
+  // map maru (handakuten)
+  const handakutenMap = {
+    "は":"ぱ", "ひ":"ぴ", "ふ":"ぷ", "へ":"ぺ", "ほ":"ぽ"
+  };
+
+  // Hàm mở rộng 1 âm On
+  function expandOn(word) {
+    const first = word[0]; // ký tự đầu
+    const rest = word.slice(1); // phần còn lại
+    const results = [word]; // luôn chứa bản gốc
+
+    if (dakutenMap[first]) results.push(dakutenMap[first] + rest);
+    if (handakutenMap[first]) results.push(handakutenMap[first] + rest);
+
+    return results;
+  }
+
+  // Biến onForms sang expandedOnForms
+  const expandedOnForms = [];
+  for (const on of onForms) {
+    const variants = expandOn(on);
+    for (const v of variants) {
+      if (!expandedOnForms.includes(v)) { // tránh trùng
+        expandedOnForms.push(v);
+      }
+    }
+  }
 
   const kun_words = [];
   const on_words = [];
@@ -149,20 +198,10 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
     for (const r of w.readings) {
       let classified = false;
 
-      // 1. Kiểm tra Kun
-      for (const form of kunForms) {
-        if (r.includes(form)) {
-          kun_words.push({ kanji: w.kanji, reading: r });
-          classified = true;
-          break;
-        }
-      }
-      if (classified) continue;
-
-      // 2. Kiểm tra On
-      for (const on of onForms) {
+      // 1. Kiểm tra On
+      const idx = w.kanji.indexOf(targetKanji);
+      for (const on of expandedOnForms) {
         if (r.includes(on)) {
-          const idx = w.kanji.indexOf(targetKanji);
           if (idx === 0 && r.startsWith(on)) {
             on_words.push({ kanji: w.kanji, reading: r });
             classified = true;
@@ -171,18 +210,45 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
             on_words.push({ kanji: w.kanji, reading: r });
             classified = true;
             break;
-          } else if (idx > 0 && idx < w.kanji.length - 1) { //kanji ở giữa và từ chứa âm ON
+          } else if (idx > 0 && idx < w.kanji.length - 1) { // targetKanji ở giữa
             on_words.push({ kanji: w.kanji, reading: r });
             classified = true;
-            break;  
+            break;
           }
         }
       }
       if (classified) continue;
 
+      // 2. Kiểm tra Kun
+      for (const kun of kunForms) {
+        if (!w.kanji.includes(kun.kanji)) 
+          continue;
+
+        if (r.includes(kun.reading)) {
+          kun_words.push({ kanji: w.kanji, reading: r });
+          classified = true;
+          break;
+        }
+
+        if (kun.reading.startsWith("-") && r.endsWith(kun.reading.slice(1))) {
+          kun_words.push({ kanji: w.kanji, reading: r });
+          classified = true;
+          break;
+        }
+
+        if (kun.reading.endsWith("-") && r.startsWith(kun.reading.slice(0, -1))) {
+          kun_words.push({ kanji: w.kanji, reading: r });
+          classified = true;
+          break;
+        }
+      }
+      if (classified) continue;
+
+      // 3. Nếu không thuộc on/kun
       the_other_words.push({ kanji: w.kanji, reading: r });
     }
   }
+
 
   return { kun_words, on_words, the_other_words };
 }

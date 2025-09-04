@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { getFontSizeClass } from "./SettingMenu.jsx";
 
 export default function ReadingSection({
   title,
@@ -6,11 +7,12 @@ export default function ReadingSection({
   words = [],
   open,
   setOpen,
-  onToggle
+  onToggle,
+  setting
 }) {
 
   return (
-    <div className="border p-3 rounded-lg bg-white shadow">
+    <div className="border p-2 rounded-lg bg-white shadow">
       <div
         className="flex justify-between items-center cursor-pointer"
         onClick={() => {
@@ -18,12 +20,12 @@ export default function ReadingSection({
           if (onToggle) onToggle();
         }}
       >
-        <span className="font-semibold text-lg">
+        <span className={`font-semibold ${getFontSizeClass(setting.fontSize, "medium")}`}>
             <span className="text-red-400">{title}</span> {readings.join(" ・ ")}
         </span>
 
         <span
-          className="text-xl transform transition-transform duration-200"
+          className={`${getFontSizeClass(setting.fontSize, "medium")} transform transition-transform duration-200`}
           style={{ rotate: open ? "90deg" : "0deg" }}
         >
           <ChevronRight />
@@ -31,7 +33,7 @@ export default function ReadingSection({
       </div>
 
       {open && words?.length > 0 && (
-        <ul className="text-lg mt-2 flex flex-wrap gap-2 text-gray-700">
+        <ul className={`${getFontSizeClass(setting.fontSize, "medium")} mt-2 flex flex-wrap gap-2 text-gray-700`}>
           {words.map((w, idx) => (
             <li
               key={idx}

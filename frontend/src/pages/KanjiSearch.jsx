@@ -80,7 +80,7 @@ export default function KanjiSearch({setting}) {
   };
 
   return (
-    <div className="flex flex-col gap-y-4 w-full max-w-6xl mx-auto"> 
+    <div className="flex flex-col gap-y-3 w-full max-w-6xl mx-auto"> 
       {/* Form tìm kiếm */}
       <section className="w-full mx-auto p-1 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-1">
@@ -94,9 +94,9 @@ export default function KanjiSearch({setting}) {
                 handleSearchKanji();
               }
             }}
-            className="w-full h-full px-4 py-3 rounded-xl border border-emerald-400
-                       bg-transparent text-3xl font-bold text-center text-slate-800 
-                       focus:outline-none focus:ring-2 focus:ring-green-400"
+            className={`w-full h-full px-4 py-3 rounded-xl border border-emerald-400
+                       bg-transparent ${getFontSizeClass(setting.fontSize, "large")} font-bold text-center text-slate-800 
+                       focus:outline-none focus:ring-2 focus:ring-green-400`}
           />
           <div className="flex flex-col gap-1">
             <div className="grid grid-cols-2 gap-1">
@@ -104,25 +104,25 @@ export default function KanjiSearch({setting}) {
                 value={hanVietInput}
                 onChange={handleFilterChange(setHanVietInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize, "medium")} text-slate-800`}
               />
               <input type="text" placeholder="RADICAL"
                 value={radicalInput}
                 onChange={handleFilterChange(setRadicalInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize, "medium")} text-slate-800`}
               />
               <input type="text" placeholder="ON YOMI"
                 value={onYomiInput}
                 onChange={handleFilterChange(setOnYomiInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize, "medium")} text-slate-800`}
               />
               <input type="text" placeholder="KUN YOMI"
                 value={kunYomiInput}
                 onChange={handleFilterChange(setKunYomiInput)}
                 onKeyDown={(e) => e.key === "Enter" && handleFilterKanji()}
-                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize)} text-slate-800`}
+                className={`px-3 py-2 rounded-lg border border-black-500 ${getFontSizeClass(setting.fontSize, "medium")} text-slate-800`}
               />
             </div>
           </div>
@@ -131,17 +131,17 @@ export default function KanjiSearch({setting}) {
 
       {selectedKanji ? (
         /* Hiển thị chi tiết nếu đã chọn Kanji */
-        <KanjiDetail selectedKanji={selectedKanji} setSelectedKanji={setSelectedKanji} />
+        <KanjiDetail selectedKanji={selectedKanji} setSelectedKanji={setSelectedKanji} setting={setting} />
       ) : (
         /* Hiển thị danh sách khi chưa chọn Kanji */
         <section className="w-full mx-auto flex flex-col gap-2">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-6">
               <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-              <p className="mt-2 text-emerald-600 font-semibold">Loading...</p>
+              <p className={`mt-2 text-emerald-600 ${getFontSizeClass(setting.fontSize, "medium")} font-semibold`}>Loading...</p>
             </div>
           ) : kanjiList.length === 0 ? (
-            <p className={`${getFontSizeClass(setting.fontSize)} text-center text-slate-600 py-6`}>No results found</p>
+            <p className={`${getFontSizeClass(setting.fontSize, "medium")} text-center text-slate-600 py-6`}>No results found</p>
           ) : (
             kanjiList.map((k, idx) => (
               <div
@@ -150,19 +150,19 @@ export default function KanjiSearch({setting}) {
                           backdrop-blur-md shadow-md hover:bg-emerald-100 cursor-pointer transition"
                 onClick={() => setSelectedKanji(k)}
               >
-                <div className="col-span-1 flex items-center justify-center font-bold text-3xl">
+                <div className={`col-span-1 flex items-center justify-center font-bold ${getFontSizeClass(setting.fontSize, "large")}`}>
                   {k.kanji}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize, "medium")}`}>
                   {k.han_viet.map(h => h.reading).join(" ・ ").toUpperCase()}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize, "medium")}`}>
                   {k.heisig_en}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize, "medium")}`}>
                   {k.on_readings.join(" ・ ")}
                 </div>
-                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize)}`}>
+                <div className={`col-span-1 flex items-center justify-center ${getFontSizeClass(setting.fontSize, "medium")}`}>
                   {k.kun_readings.join(" ・ ")}
                 </div>
               </div>
