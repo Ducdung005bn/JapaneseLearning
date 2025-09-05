@@ -1,17 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import KanjiDetail from "./KanjiDetail.jsx";
+import { useNavigate } from "react-router-dom";
 import { getFontSizeClass } from "./SettingMenu.jsx";
 
-export default function KanjiSearch({setting}) {
+export default function Kanji({setting}) {
   const [kanjiInput, setKanjiInput] = useState("");
   const [hanVietInput, setHanVietInput] = useState("");
   const [radicalInput, setRadicalInput] = useState("");
   const [onYomiInput, setOnYomiInput] = useState("");
   const [kunYomiInput, setKunYomiInput] = useState("");
   const [kanjiList, setKanjiList] = useState([]);
-  const [selectedKanji, setSelectedKanji] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const navigate = useNavigate(); //hook phải được gọi ở cấp cao nhất 
 
   const handleKanjiInputChange = (e) => {
     setKanjiInput(e.target.value);
@@ -39,7 +40,6 @@ export default function KanjiSearch({setting}) {
     setHanVietInput(""); setRadicalInput(""); setOnYomiInput(""); setKunYomiInput("");
 
     setLoading(true);
-    setSelectedKanji(null);
 
     try {
       const res = await axios.get("http://localhost:3000/kanji/" + kanjiInput);
@@ -60,7 +60,6 @@ export default function KanjiSearch({setting}) {
     }
 
     setLoading(true);
-    setSelectedKanji(null);
 
     try {
       const params = {
@@ -71,6 +70,7 @@ export default function KanjiSearch({setting}) {
       };
       const res = await axios.get("http://localhost:3000/kanji/filter", { params });
       setKanjiList(res.data);
+      
     } catch (err) {
       console.error(err);
       setKanjiList([]);
@@ -79,8 +79,15 @@ export default function KanjiSearch({setting}) {
     }
   };
 
+  useEffect(() => {
+    if (kanjiList.length === 1) {
+      navigate(`/kanji/${kanjiList[0]}`)
+    }
+  }, [kanjiList]);
+
+
   return (
-    <div className="flex flex-col gap-y-3 w-full max-w-6xl mx-auto"> 
+    <div className="flex flex-col gap-y-3 w-full mx-auto"> 
       {/* Form tìm kiếm */}
       <section className="w-full mx-auto p-1 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-1">
@@ -129,11 +136,6 @@ export default function KanjiSearch({setting}) {
         </div>
       </section>
 
-      {selectedKanji ? (
-        /* Hiển thị chi tiết nếu đã chọn Kanji */
-        <KanjiDetail selectedKanji={selectedKanji} setSelectedKanji={setSelectedKanji} setting={setting} />
-      ) : (
-        /* Hiển thị danh sách khi chưa chọn Kanji */
         <section className="w-full mx-auto flex flex-col gap-2">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-6">
@@ -148,7 +150,7 @@ export default function KanjiSearch({setting}) {
                 key={idx}
                 className="w-full grid grid-cols-5 gap-2 px-4 py-2 rounded-2xl bg-white/50 
                           backdrop-blur-md shadow-md hover:bg-emerald-100 cursor-pointer transition"
-                onClick={() => setSelectedKanji(k)}
+                onClick={() => navigate(`/kanji/${k.kanji}`)}
               >
                 <div className={`col-span-1 flex items-center justify-center font-bold ${getFontSizeClass(setting.fontSize, "large")}`}>
                   {k.kanji}
@@ -169,7 +171,6 @@ export default function KanjiSearch({setting}) {
             ))
           )}
         </section>
-      )}
     </div>
   );
 }

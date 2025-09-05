@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { getFontSizeClass } from "./SettingMenu.jsx";
 
-export default function RadicalOf({ selectedKanji, setting }) {
+export default function RadicalOf({ kanji, setting }) {
   const [radicalKanji, setRadicalKanji] = useState([]);
 
   useEffect(() => {
-    if (!selectedKanji?.kanji) return;
+    if (!kanji?.kanji) return;
 
     const fetchRadicalKanji = async () => {
       try {
-        const params = { children: selectedKanji.kanji };
+        const params = { children: kanji.kanji };
         const res = await axios.get("http://localhost:3000/kanji/filter", { params });
         setRadicalKanji(res.data || []);
       } catch (err) {
@@ -20,7 +20,7 @@ export default function RadicalOf({ selectedKanji, setting }) {
     };
 
     fetchRadicalKanji();
-  }, [selectedKanji]);
+  }, [kanji]);
 
   const kanjiCount = radicalKanji.length;
   const kanjiText = kanjiCount === 1 ? "KANJI" : "KANJIS";

@@ -26,6 +26,7 @@ const kanjiSchema = new mongoose.Schema({
   six_principles: { type: String },
   han_viet: [{
     reading: { type: String, required: true },
+    reading_no_diacritics:  { type: String, required: true },
     common_meanings: [String],
     cited_meanings: [String],
     thieu_chuu_meanings: [String],

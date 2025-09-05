@@ -2,7 +2,7 @@ import { getFontSizeClass } from "./SettingMenu.jsx";
 import { useRef, useState, useEffect } from "react";
 import TreeSection from "./TreeSection";
 
-export default function KanjiDrawing({ selectedKanji, setting }) {
+export default function KanjiDrawing({ kanji, setting }) {
   const [mode, setMode] = useState("animation"); // animation | draw
   const [strokeColor, setStrokeColor] = useState("black");
   const [resetKey, setResetKey] = useState(0);
@@ -81,7 +81,7 @@ export default function KanjiDrawing({ selectedKanji, setting }) {
     ctx.lineWidth = 4 / (canvasWidth / viewBoxSize);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    selectedKanji.d.forEach((pathData) => {
+    kanji.d.forEach((pathData) => {
       const path = new Path2D(pathData);
       ctx.stroke(path);
     });
@@ -153,7 +153,7 @@ export default function KanjiDrawing({ selectedKanji, setting }) {
   };
 
   return (
-    <section className="w-1/3 mx-auto p-4 max-w-[325px] rounded-2xl bg-white/50 backdrop-blur-md shadow-lg flex flex-col gap-4">
+    <section className="w-1/3 p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg flex flex-col gap-4">
       
       {/* =================== Mode Selector =================== */}
       <div className="flex gap-2 justify-center mb-2">
@@ -184,12 +184,12 @@ export default function KanjiDrawing({ selectedKanji, setting }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {selectedKanji.d.map((pathData, idx) => (
+            {kanji.d.map((pathData, idx) => (
               <path key={idx} d={pathData} />
             ))}
           </svg>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 mx-auto">
             <button
               onClick={() => setResetKey((k) => k + 1)}
               className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500`}
@@ -226,7 +226,7 @@ export default function KanjiDrawing({ selectedKanji, setting }) {
             onMouseLeave={handleMouseUp}
           />
 
-          <div className="flex gap-2 mt-2 items-center">
+          <div className="flex gap-2 mt-2 mx-auto items-center">
             <button
               onClick={handleClear}
               className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 rounded-lg bg-red-400 text-white hover:bg-red-500`}
@@ -257,7 +257,7 @@ export default function KanjiDrawing({ selectedKanji, setting }) {
       )}
       
       <p className={`mx-auto ${getFontSizeClass(setting.fontSize, "medium")} mt-8 font-bold text-gray-700`}>CASCADING KANJI VIEW</p>
-      <TreeSection nodes={selectedKanji.children} setting={setting}/>
+      <TreeSection nodes={kanji.children} setting={setting}/>
     </section>
   );
 }
