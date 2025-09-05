@@ -3,9 +3,9 @@ import * as kanjiController from '../controllers/kanji.controller.js';
 
 const router = express.Router();
 
-router.get('/', kanjiController.getAllKanji);
-
 router.get('/filter', kanjiController.filterKanji);
+
+router.get('/', kanjiController.getAllKanji);
 
 router.get('/:character', kanjiController.getKanjiDetail);
 

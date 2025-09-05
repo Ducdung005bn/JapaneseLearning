@@ -21,15 +21,16 @@ export const getKanjiDetail = async (req, res) => {
       { 'kanji.text': { $regex: kanji.kanji } }
     );
 
-  
     // For example: //{ kanji: '架空', readings: [ 'かくう', 'がくう' ] }
     const words = mapKanaPerMatchedKanji(vocabularyList, kanji.kanji);
 
-
-
     const kanji_words = classifyWords(words, kanji.kanji, kanji.kun_readings, kanji.on_readings);
 
-    res.json({kanji, kanji_words});
+    let filter = {};
+    filter['children.part'] = kanji.kanji;
+    const radicalKanjis = await Kanji.find(filter).select("kanji -_id");
+
+    res.json({kanji, kanji_words, radicalKanjis});
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -37,10 +38,14 @@ export const getKanjiDetail = async (req, res) => {
 
 export const filterKanji = async (req, res) => {
   try {
-    const { han_viet, children, on_readings, kun_readings } = req.query;
+    const { kanji, han_viet, children, on_readings, kun_readings } = req.query;
 
     // Tạo filter trống
     let filter = {};
+
+    if (kanji) {
+      filter.kanji = { $regex: kanji, $options: 'i' };
+    }
 
     // Tìm theo Hán-Việt / Heisig
     if (han_viet) {

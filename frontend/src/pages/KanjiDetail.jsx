@@ -1,19 +1,23 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
-import KanjiDrawing from "./KanjiDrawing.jsx";
-import ReadingSection from "./ReadingSection.jsx";
-import { getFontSizeClass } from "./SettingMenu.jsx";
-import HanVietSection from "./HanVietSection.jsx";
-import RadicalOf from "./RadicalOf.jsx";
-import HelpModal from "./HelpModal.jsx";
+import KanjiSearch from "../components/Kanji/KanjiSearch.jsx";
+import KanjiDrawing from "../components/KanjiDetail/KanjiDrawing.jsx";
+import ReadingSection from "../components/KanjiDetail/ReadingSection.jsx";
+import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
+import HanVietSection from "../components/KanjiDetail/HanVietSection.jsx";
+import RadicalSection from "../components/KanjiDetail/RadicalSection.jsx";
+import HelpModal from "../components/Other/HelpModal.jsx";
+import TreeSection from "../components/KanjiDetail/TreeSection.jsx";
 export default function KanjiDetail({ setting }) {
+  const [loading, setLoading] = useState(true);
   const [openOn, setOpenOn] = useState(false);
   const [openKun, setOpenKun] = useState(false);
   const [openOtherReading, setOpenOtherReading] = useState(false);
-  const [vocabularyList, setVocabularyList] = useState({ on_words: [], kun_words: [], the_other_words: [] });
+  
   const [kanji, setKanji] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [vocabularyList, setVocabularyList] = useState({ on_words: [], kun_words: [], the_other_words: [] });
+  const [radicalKanji, setRadicalKanji] = useState({});
 
   const { character } = useParams();
 
@@ -25,6 +29,7 @@ export default function KanjiDetail({ setting }) {
         const res = await axios.get("http://localhost:3000/kanji/" + character);
         setKanji(res.data.kanji);
         setVocabularyList(res.data.kanji_words);
+        setRadicalKanji(res.data.radicalKanjis);
       } catch (err) {
         console.error(err);
       } finally {
@@ -41,6 +46,8 @@ export default function KanjiDetail({ setting }) {
 
 
   return (
+<div className="flex flex-col gap-y-3 w-full mx-auto">
+  <KanjiSearch setting={setting} />
   <div className="flex gap-3">
     <section className="flex flex-col gap-3 w-2/3 p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
       <span className="flex gap-10">
@@ -137,13 +144,23 @@ export default function KanjiDetail({ setting }) {
           </div>)
       }
 
-      <RadicalOf kanji={kanji} setting={setting}/>
+      <RadicalSection radicalKanji={radicalKanji} setting={setting}/>
 
       <HanVietSection hanViet={kanji.han_viet} setting={setting}/>
 
     </section>
-    
-    <KanjiDrawing kanji={kanji} setting={setting}/>
+
+    <div className="w-1/3">
+        <KanjiDrawing d={kanji.d} setting={setting} />
+        
+        <p className={`${getFontSizeClass(setting.fontSize, "medium")} mb-4 mt-8 font-bold text-gray-700 text-center`}>CASCADING KANJI VIEW</p>
+        <div className="rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
+          <TreeSection nodes={kanji.children} setting={setting} />  
+        </div>
+          
+    </div>
+
   </div>
+</div>
   );
 }

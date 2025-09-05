@@ -1,8 +1,8 @@
-import { getFontSizeClass } from "./SettingMenu.jsx";
+import { getFontSizeClass } from "../Other/SettingMenu.jsx";
 import { useRef, useState, useEffect } from "react";
-import TreeSection from "./TreeSection";
+import TreeSection from "./TreeSection.jsx";
 
-export default function KanjiDrawing({ kanji, setting }) {
+export default function KanjiDrawing({ d, setting }) {
   const [mode, setMode] = useState("animation"); // animation | draw
   const [strokeColor, setStrokeColor] = useState("black");
   const [resetKey, setResetKey] = useState(0);
@@ -81,7 +81,7 @@ export default function KanjiDrawing({ kanji, setting }) {
     ctx.lineWidth = 4 / (canvasWidth / viewBoxSize);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    kanji.d.forEach((pathData) => {
+    d.forEach((pathData) => {
       const path = new Path2D(pathData);
       ctx.stroke(path);
     });
@@ -153,7 +153,7 @@ export default function KanjiDrawing({ kanji, setting }) {
   };
 
   return (
-    <section className="w-1/3 p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg flex flex-col gap-4">
+    <section className="w-full p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg flex flex-col gap-4">
       
       {/* =================== Mode Selector =================== */}
       <div className="flex gap-2 justify-center mb-2">
@@ -184,7 +184,7 @@ export default function KanjiDrawing({ kanji, setting }) {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            {kanji.d.map((pathData, idx) => (
+            {d.map((pathData, idx) => (
               <path key={idx} d={pathData} />
             ))}
           </svg>
@@ -256,8 +256,6 @@ export default function KanjiDrawing({ kanji, setting }) {
         </>
       )}
       
-      <p className={`mx-auto ${getFontSizeClass(setting.fontSize, "medium")} mt-8 font-bold text-gray-700`}>CASCADING KANJI VIEW</p>
-      <TreeSection nodes={kanji.children} setting={setting}/>
     </section>
   );
 }

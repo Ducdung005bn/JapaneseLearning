@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { getFontSizeClass } from "./SettingMenu.jsx";
+import { getFontSizeClass } from "../Other/SettingMenu.jsx";
 
 export default function ReadingSection({
   title,

@@ -1,32 +1,11 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
-import { getFontSizeClass } from "./SettingMenu.jsx";
+import { getFontSizeClass } from "../Other/SettingMenu.jsx";
 
-export default function RadicalOf({ kanji, setting }) {
-  const [radicalKanji, setRadicalKanji] = useState([]);
-
-  useEffect(() => {
-    if (!kanji?.kanji) return;
-
-    const fetchRadicalKanji = async () => {
-      try {
-        const params = { children: kanji.kanji };
-        const res = await axios.get("http://localhost:3000/kanji/filter", { params });
-        setRadicalKanji(res.data || []);
-      } catch (err) {
-        console.error(err);
-        setRadicalKanji([]);
-      }
-    };
-
-    fetchRadicalKanji();
-  }, [kanji]);
-
+export default function RadicalSection({ radicalKanji, setting }) {
   const kanjiCount = radicalKanji.length;
   const kanjiText = kanjiCount === 1 ? "KANJI" : "KANJIS";
 
   return (
-    <div className="border p-2 rounded-lg bg-white shadow">
+    <section className="border p-2 rounded-lg bg-white shadow">
       <div className="flex justify-between items-center">
         <span className={`font-semibold ${getFontSizeClass(setting.fontSize, "medium")}`}>
           <span className="text-red-400">RADICAL OF</span> {kanjiCount} {kanjiText}
@@ -41,6 +20,6 @@ export default function RadicalOf({ kanji, setting }) {
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

@@ -1,0 +1,283 @@
+import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import axios from "axios";
+
+export default function AuthModal({ mode, onClose, onSuccess }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [gender, setGender] = useState("male");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [jlptLevel, setJlptLevel] = useState("0");
+
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState(mode === "login" ? 1 : 0);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [show, setShow] = useState(false); //show password
+  const [success, setSuccess] = useState(""); //show notifications
+
+
+  const sendVerification = async () => {
+    setLoading(true);
+    try {
+      if (!email) {
+        setError("Email is required");
+        setLoading(false);
+        return;
+      }
+      await axios.post("http://localhost:3000/auth/sendVerificationCode", { email });
+      setStep(1);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send verification code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyCode = async () => {
+    setLoading(true);
+    try {
+      if (!code) {
+        setError("Verification code is required");
+        setLoading(false);
+        return;
+      }
+      await axios.post("http://localhost:3000/auth/verifyCode", { email, code });
+      setStep(2);
+      setError("");
+    } catch (err) {
+      setError(err.response?.data?.message || "Invalid code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    setLoading(true);
+
+    const missingFields = [];
+    if (!password) missingFields.push("Password");
+    if (!fullName) missingFields.push("Full Name");
+    if (!gender) missingFields.push("Gender");
+    if (!dateOfBirth) missingFields.push("Date of Birth");
+    if (!jlptLevel) missingFields.push("JLPT Level");
+
+    if (missingFields.length > 0) {
+    setError("Please fill in: " + missingFields.join(", "));
+    setLoading(false);
+    return;
+    }
+
+    try {
+      const res = await axios.post("http://localhost:3000/auth/register", {
+        email,
+        password,
+        personalInformation: { fullName, gender, dateOfBirth, jlptLevel }
+      });
+      onSuccess(res.data);
+      setSuccess("Register successful!");
+      setTimeout(() => {
+        onClose();
+      }, 10000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Register failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = async () => {
+    setLoading(true);
+
+    if (!email || !password) {
+      setError("Email and password are required");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const res = await axios.post("http://localhost:3000/auth/login", { email, password });
+
+      const { token } = res.data;
+
+      // lưu token vào localStorage
+      localStorage.setItem("token", token);
+
+
+      onSuccess(res.data);
+      setSuccess("Login successful!");
+
+      setTimeout(() => {
+        onClose();
+      }, 10000);
+
+    } catch (err) {
+      setError(err.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-md relative shadow-lg">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+        >
+          ✕
+        </button>
+        <h2 className="text-2xl font-bold mb-4">
+          {mode === "login" ? "Login" : "Register"}
+        </h2>
+
+        {/* Register Step 0 */}
+        {mode === "register" && step === 0 && (
+          <>
+            <label className="block mb-1 font-medium">Email *</label>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full mb-2 p-2 border rounded-2xl"
+            />
+            <button
+              onClick={sendVerification}
+              disabled={loading}
+              className="w-full bg-blue-500 text-white py-2 rounded-2xl"
+            >
+              Send Verification Code
+            </button>
+          </>
+        )}
+
+        {/* Register Step 1 */}
+        {mode === "register" && step === 1 && (
+          <>
+            <label className="block mb-1 font-medium">Verification Code *</label>
+            <input
+              type="text"
+              placeholder="Enter code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              required
+              className="w-full mb-2 p-2 border rounded-2xl"
+            />
+            <button
+              onClick={verifyCode}
+              disabled={loading}
+              className="w-full bg-blue-500 text-white py-2 rounded-2xl"
+            >
+              Verify Code
+            </button>
+          </>
+        )}
+
+        {/* Register Step 2 & Login */}
+        {((mode === "register" && step === 2) || mode === "login") && (
+          <>
+            <label className="block mb-1 font-medium">Email *</label>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              readOnly={mode === "register" && step === 2}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className={`w-full mb-2 p-2 border rounded-2xl ${
+                mode === "register" && step === 2 ? "bg-gray-100 cursor-not-allowed" : ""
+              }`}
+            />
+
+            <label className="block mb-1 font-medium">Password *</label>
+
+            <div className="relative w-full mb-2">
+            <input
+                type={show ? "text" : "password"}
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full p-2 pr-10 border rounded-2xl"
+            />
+            <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                className="absolute inset-y-0 right-2 flex items-center text-gray-500 hover:text-gray-700"
+            >
+                {show ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+            </div>
+
+
+            {mode === "register" && step === 2 && (
+              <>
+                <label className="block mb-1 font-medium">Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="Full Name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="w-full mb-2 p-2 border rounded-2xl"
+                />
+
+                <label className="block mb-1 font-medium">Gender *</label>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  required
+                  className="w-full mb-2 p-2 border rounded-2xl"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+
+                <label className="block mb-1 font-medium">Date of Birth *</label>
+                <input
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  required
+                  className="w-full mb-2 p-2 border rounded-2xl"
+                />
+
+                <label className="block mb-1 font-medium">JLPT Level *</label>
+                <select
+                  onChange={(e) => setJlptLevel(Number(e.target.value))}
+                  value={jlptLevel}
+                  required
+                  className="w-full mb-2 p-2 border rounded-2xl"
+                >
+                  <option value={0}>0</option>
+                  <option value={5}>5</option>
+                  <option value={4}>4</option>
+                  <option value={3}>3</option>
+                  <option value={2}>2</option>
+                  <option value={1}>1</option>
+                </select>
+              </>
+            )}
+
+            <button
+              onClick={mode === "login" ? handleLogin : handleRegister}
+              disabled={loading}
+              className="w-full bg-green-500 text-white py-2 rounded-2xl"
+            >
+              {mode === "login" ? "Login" : "Register"}
+            </button>
+          </>
+        )}
+
+        {error && <p className="text-red-500 mt-2">{error}</p>}
+        {success && <p className="text-green-600 mt-2">{success}</p>}
+      </div>
+
+    </div>
+  );
+}

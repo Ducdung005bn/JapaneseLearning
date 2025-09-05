@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { getFontSizeClass } from "./SettingMenu.jsx";
-import HelpModal from "./HelpModal.jsx";    
+import { getFontSizeClass } from "../Other/SettingMenu.jsx";
+import HelpModal from "../Other/HelpModal.jsx";    
 
 export default function HanVietSection({ hanViet, setting }) {
     const [openIndices, setOpenIndices] = useState({});
@@ -26,7 +26,7 @@ export default function HanVietSection({ hanViet, setting }) {
     ];
 
     return (
-        <div className="space-y-3">
+    <section className="space-y-3">
         {hanViet.map((hv, idx) => {
             const isOpen = !!openIndices[idx];
 
@@ -102,6 +102,6 @@ export default function HanVietSection({ hanViet, setting }) {
             </div>
             );
         })}
-        </div>
+    </section>
     );
 }

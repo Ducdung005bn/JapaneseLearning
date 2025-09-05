@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { getFontSizeClass } from "./SettingMenu.jsx";
+import { getFontSizeClass } from "../Other/SettingMenu.jsx";
 
 function TreeNode({ node, setting }) {
   const [open, setOpen] = useState(false);
@@ -8,7 +8,8 @@ function TreeNode({ node, setting }) {
   const hasChildren = node.children && node.children.length > 0;
 
   return (
-        <li className="relative pl-4">
+    <section className="w-full p-4 flex flex-col gap-4">
+      <li className="relative pl-4">
         {/* Tree line */}
         <span className="absolute left-0 top-2 h-full border-l-2 border-gray-300"></span>
 
@@ -32,7 +33,8 @@ function TreeNode({ node, setting }) {
             <TreeSection nodes={node.children} setting={setting} />
             </div>
         )}
-        </li>
+      </li>
+    </section>
   );
 }
 

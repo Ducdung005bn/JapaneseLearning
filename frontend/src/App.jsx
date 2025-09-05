@@ -4,8 +4,9 @@ import Kanji from "./pages/Kanji.jsx";
 import KanjiDetail from "./pages/KanjiDetail.jsx";
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import SettingMenu, {getFontSizeClass} from "/src/pages/SettingMenu.jsx";
-import {BrowserRouter as Router, Routes, Route, Link} from "react-router-dom";
+import SettingMenu, {getFontSizeClass} from "/src/components/Other/SettingMenu.jsx";
+import AuthModal from "./pages/AuthModal.jsx";
+import {BrowserRouter as Router, Routes, Route, Link, useLocation} from "react-router-dom";
 import {
   Home,
   BookOpenText,
@@ -20,28 +21,22 @@ import {
   Sparkles,
 } from "lucide-react";
 
-// const PAGES = [
-//   { key: "Home", icon: Home, path: "/", element: <Home /> },
-//   { key: "Vocabulary", icon: BookOpenText, path: "/vocabulary", element: <Vocabulary /> },
-//   { key: "Kanji", icon: Languages, path: "/kanji", element: <Kanji /> },
-//   { key: "Lesson", icon: PenLine, path: "/lesson", element: <Lesson /> },
-//   { key: "Note", icon: NotebookText, path: "/note", element: <Note /> },
-//   { key: "Community", icon: Users, path: "/community", element: <Community /> },
-//   { key: "Function", icon: Wrench, path: "/function", element: <Function /> },
-//   { key: "Information", icon: Info, path: "/information", element: <Information /> },
-// ];
-
 export default function App() {
-  const [active, setActive] = useState("HomePg");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
+
 
   //for SettingMenu
   const [setting, setSetting] = useState({
     fontSize: "medium"
   });
 
+  const handleSuccess = (data) => {
+    console.log("User logged in / registered:", data);
+  };
+
   const PAGES = [
-    { key: "HomePg", icon: Home, path: "/", element: <HomePg /> },
+    { key: "Home", icon: Home, path: "/", element: <HomePg /> },
     { key: "Vocabulary", icon: BookOpenText, path: "/vocabulary", element: <Vocabulary /> },
     { key: "Kanji", icon: Languages, path: "/kanji", element: <Kanji setting={setting}/> },
     { key: "Lesson", icon: PenLine },
@@ -49,10 +44,21 @@ export default function App() {
     { key: "Community", icon: Users },
     { key: "Function", icon: Wrench },
     { key: "Information", icon: Info },
+
   ];
 
+  const location = useLocation(); 
+  const active = useMemo(() => {
+    if (location.pathname === "/") return "Home";
+
+    // các path khác match cả dynamic route
+    const page = PAGES.find(p => location.pathname.startsWith(p.path) && p.path !== "/");
+    return page ? page.key : "";
+  }, [location.pathname]);
+
+
+
   return (
-    <Router>
       <div className={"min-h-screen w-full bg-gradient-to-b from-green-50 via-white to-green-50 transition-colors"}>
         {/* Background gradient */}
         <div className="min-h-screen w-full bg-green-200 transition-colors">
@@ -94,7 +100,23 @@ export default function App() {
                     </>
                   )}
                 </button>
+
                 <SettingMenu onChange={(s) => setSetting(s)} setting={setting} />
+
+                 {/* nút đăng nhập / đăng ký */}
+                <button
+                  onClick={() => setAuthModal("login")}
+                  className="px-3 py-2 bg-red-200 text-black rounded-2xl"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => setAuthModal("register")}
+                  className="px-3 py-2 bg-red-200 text-black rounded-2xl"
+                >
+                  Register
+                </button>
+
               </div>
             </div>
           </header>
@@ -144,7 +166,7 @@ export default function App() {
                           "grid place-content-center rounded-2xl p-2 border",
                           selected
                             ? "border-red-300/60 bg-white/70"
-                            : "border-white/50 bg-white/60 group-hover:border-red-300/60",
+                            : "border-grey/300 bg-white/60 group-hover:border-red-300/60",
                         ].join(" ")}
                       >
                         <Icon className="h-5 w-5" />
@@ -179,7 +201,10 @@ export default function App() {
                   }
                   <Route path="*" element={<HomePg />} />
                   <Route path="kanji/:character" element={<KanjiDetail setting={setting} />} />
+                  <Route path="*" element={<p>Page not found</p>} />
+
                 </Routes>
+              
               </div>
             </div>
           </main>
@@ -188,9 +213,17 @@ export default function App() {
           <footer className={`py-8 text-center ${getFontSizeClass(setting.fontSize, "medium")} text-slate-600/80`}>
             If you have any questions, suggestions, or feedback, please feel free to contact me at 23020655@vnu.edu.vn.
           </footer>
+
+          {/* hiển thị modal */}
+          {authModal && (
+            <AuthModal
+              mode={authModal}
+              onClose={() => setAuthModal(null)}
+              onSuccess={handleSuccess}
+            />
+          )}
         </div>
       </div>
-    </Router>
   );
 
 }

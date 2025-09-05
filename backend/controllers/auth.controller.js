@@ -37,7 +37,7 @@ export const sendVerificationCode = async (req, res, next) => {
 
         await sendVerificationEmail(email, code);
 
-        res.json({ msg: 'Verification code sent' });
+        res.json({ message: 'Verification code sent' });
     } catch (error) {
         next(error);
     }
