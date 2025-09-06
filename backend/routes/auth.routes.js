@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/sendVerificationCode', authController.sendVerificationCode);
 router.post('/verifyCode', authController.verifyCode);
-router.post('/register', authController.register);
+router.post('/register', authController.uploadAvatar, authController.register);
 
 router.post('/login', authController.login);
 

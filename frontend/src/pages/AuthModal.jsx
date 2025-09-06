@@ -10,6 +10,10 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [jlptLevel, setJlptLevel] = useState("0");
 
+  const [biography, setBiography] = useState("");
+  const [avatar, setAvatar] = useState(null);
+
+
   const [code, setCode] = useState("");
   const [step, setStep] = useState(mode === "login" ? 1 : 0);
   const [error, setError] = useState("");
@@ -65,28 +69,38 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     if (!jlptLevel) missingFields.push("JLPT Level");
 
     if (missingFields.length > 0) {
-    setError("Please fill in: " + missingFields.join(", "));
-    setLoading(false);
-    return;
+        setError("Please fill in: " + missingFields.join(", "));
+        setLoading(false);
+        return;
     }
 
     try {
-      const res = await axios.post("http://localhost:3000/auth/register", {
-        email,
-        password,
-        personalInformation: { fullName, gender, dateOfBirth, jlptLevel }
-      });
-      onSuccess(res.data);
-      setSuccess("Register successful!");
-      setTimeout(() => {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("password", password);
+        formData.append("fullName", fullName);
+        formData.append("gender", gender);
+        formData.append("dateOfBirth", dateOfBirth);
+        formData.append("jlptLevel", jlptLevel);
+        formData.append("biography", biography);
+        formData.append("avatar", avatar); // file ảnh
+
+        const res = await axios.post("http://localhost:3000/auth/register", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        onSuccess(res.data);
+        setSuccess("Register successful!");
+        setTimeout(() => {
         onClose();
-      }, 10000);
+        }, 10000);
     } catch (err) {
-      setError(err.response?.data?.message || "Register failed");
+        setError(err.response?.data?.message || "Register failed");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+    };
+
 
   const handleLogin = async () => {
     setLoading(true);
@@ -214,55 +228,84 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
             </div>
 
 
-            {mode === "register" && step === 2 && (
-              <>
-                <label className="block mb-1 font-medium">Full Name *</label>
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="w-full mb-2 p-2 border rounded-2xl"
-                />
+{mode === "register" && step === 2 && (
+  <div className="grid grid-cols-2 gap-4">
+    <div className="col-span-2">
+      <label className="block mb-1 font-medium">Full Name *</label>
+      <input
+        type="text"
+        placeholder="Full Name"
+        value={fullName}
+        onChange={(e) => setFullName(e.target.value)}
+        required
+        className="w-full p-2 border rounded-2xl"
+      />
+    </div>
 
-                <label className="block mb-1 font-medium">Gender *</label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  required
-                  className="w-full mb-2 p-2 border rounded-2xl"
-                >
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
+    <div>
+      <label className="block mb-1 font-medium">Gender *</label>
+      <select
+        value={gender}
+        onChange={(e) => setGender(e.target.value)}
+        required
+        className="w-full p-2 border rounded-2xl"
+      >
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
 
-                <label className="block mb-1 font-medium">Date of Birth *</label>
-                <input
-                  type="date"
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  required
-                  className="w-full mb-2 p-2 border rounded-2xl"
-                />
+    <div>
+      <label className="block mb-1 font-medium">Date of Birth *</label>
+      <input
+        type="date"
+        value={dateOfBirth}
+        onChange={(e) => setDateOfBirth(e.target.value)}
+        required
+        className="w-full p-2 border rounded-2xl"
+      />
+    </div>
 
-                <label className="block mb-1 font-medium">JLPT Level *</label>
-                <select
-                  onChange={(e) => setJlptLevel(Number(e.target.value))}
-                  value={jlptLevel}
-                  required
-                  className="w-full mb-2 p-2 border rounded-2xl"
-                >
-                  <option value={0}>0</option>
-                  <option value={5}>5</option>
-                  <option value={4}>4</option>
-                  <option value={3}>3</option>
-                  <option value={2}>2</option>
-                  <option value={1}>1</option>
-                </select>
-              </>
-            )}
+    <div>
+      <label className="block mb-1 font-medium">JLPT Level *</label>
+      <select
+        onChange={(e) => setJlptLevel(Number(e.target.value))}
+        value={jlptLevel}
+        required
+        className="w-full p-2 border rounded-2xl"
+      >
+        <option value={0}>0</option>
+        <option value={5}>5</option>
+        <option value={4}>4</option>
+        <option value={3}>3</option>
+        <option value={2}>2</option>
+        <option value={1}>1</option>
+      </select>
+    </div>
+
+    <div>
+      <label className="block mb-1 font-medium">Avatar</label>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setAvatar(e.target.files[0])}
+        className="w-full p-2 border rounded-2xl"
+      />
+    </div>
+
+    <div className="col-span-2">
+      <label className="block mb-1 font-medium">Biography</label>
+      <textarea
+        placeholder="Write something about yourself"
+        value={biography}
+        onChange={(e) => setBiography(e.target.value)}
+        className="w-full p-2 border rounded-2xl"
+      />
+    </div>
+  </div>
+)}
+
 
             <button
               onClick={mode === "login" ? handleLogin : handleRegister}
@@ -274,8 +317,12 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
           </>
         )}
 
-        {error && <p className="text-red-500 mt-2">{error}</p>}
-        {success && <p className="text-green-600 mt-2">{success}</p>}
+        {success ? (
+        <p className="text-green-600 mt-2">{success}</p>
+        ) : (
+        error && <p className="text-red-500 mt-2">{error}</p>
+        )}
+
       </div>
 
     </div>
