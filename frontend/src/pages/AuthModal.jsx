@@ -30,7 +30,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(false);
         return;
       }
-      await axios.post("http://localhost:3000/auth/sendVerificationCode", { email });
+      await axios.post("http://localhost:5000/auth/sendVerificationCode", { email });
       setStep(1);
       setError("");
     } catch (err) {
@@ -48,7 +48,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(false);
         return;
       }
-      await axios.post("http://localhost:3000/auth/verifyCode", { email, code });
+      await axios.post("http://localhost:5000/auth/verifyCode", { email, code });
       setStep(2);
       setError("");
     } catch (err) {
@@ -85,7 +85,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         formData.append("biography", biography);
         formData.append("avatar", avatar); // file ảnh
 
-        const res = await axios.post("http://localhost:3000/auth/register", formData, {
+        const res = await axios.post("http://localhost:5000/auth/register", formData, {
         headers: { "Content-Type": "multipart/form-data" },
         });
 
@@ -93,7 +93,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setSuccess("Register successful!");
         setTimeout(() => {
         onClose();
-        }, 10000);
+        }, 3000);
     } catch (err) {
         setError(err.response?.data?.message || "Register failed");
     } finally {
@@ -112,20 +112,14 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     }
 
     try {
-      const res = await axios.post("http://localhost:3000/auth/login", { email, password });
-
-      const { token } = res.data;
-
-      // lưu token vào localStorage
-      localStorage.setItem("token", token);
-
-
+      const res = await axios.post("http://localhost:5000/auth/login", { email, password });
+      
       onSuccess(res.data);
       setSuccess("Login successful!");
 
       setTimeout(() => {
         onClose();
-      }, 10000);
+      }, 3000);
 
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");

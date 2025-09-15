@@ -1,12 +1,14 @@
 import express from 'express';
+import dotenv from 'dotenv'; dotenv.config({ path: '.env.development.local' });
 
 import * as authController from '../controllers/auth.controller.js';
+import { uploadAvatar } from '../config/cloudinarystorage.js';
 
 const router = express.Router();
 
 router.post('/sendVerificationCode', authController.sendVerificationCode);
 router.post('/verifyCode', authController.verifyCode);
-router.post('/register', authController.uploadAvatar, authController.register);
+router.post('/register', uploadAvatar, authController.register);
 
 router.post('/login', authController.login);
 

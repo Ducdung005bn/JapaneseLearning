@@ -13,6 +13,7 @@ export const getAllKanji = async (req, res) => {
 
 export const getKanjiDetail = async (req, res) => {
   try {
+    console.log("hello");
     const kanji = await Kanji.findOne({ kanji: req.params.character });
     if (!kanji) return res.status(404).json({ error: 'Kanji not found' });
 

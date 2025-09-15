@@ -27,10 +27,6 @@ app.use('/user', userRoutes);
 
 app.use(errorMiddleware);
 
-app.get('/', (req, res) => {
-  res.send('Hello!');
-});
-
 app.listen(process.env.PORT, async () => {
   console.log(`API is running on http://localhost:${process.env.PORT}`);
 

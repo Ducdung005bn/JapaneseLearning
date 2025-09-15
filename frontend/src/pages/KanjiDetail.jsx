@@ -26,7 +26,7 @@ export default function KanjiDetail({ setting }) {
       console.log("Get kanji detail for", character);
 
       try {
-        const res = await axios.get("http://localhost:3000/kanji/" + character);
+        const res = await axios.get("http://localhost:5000/kanji/" + character);
         setKanji(res.data.kanji);
         setVocabularyList(res.data.kanji_words);
         setRadicalKanji(res.data.radicalKanjis);

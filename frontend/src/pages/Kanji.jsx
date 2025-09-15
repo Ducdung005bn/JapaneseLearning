@@ -25,7 +25,7 @@ export default function Kanji({ setting }) {
   const fetchKanji = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:3000/kanji/filter", {
+      const res = await axios.get("http://localhost:5000/kanji/filter", {
         params: { kanji, han_viet, children, on_readings, kun_readings }
       });
       setKanjiList(res.data);

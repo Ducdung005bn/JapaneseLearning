@@ -3,9 +3,6 @@ import User from '../models/user.model.js';
 import bcrypt from 'bcryptjs';
 import Redis from 'ioredis';
 import jwt from 'jsonwebtoken';
-import multer from "multer";
-import path from "path";
-import fs from "fs";
 import { sendVerificationEmail } from '../utils/send-email.js';
 
 import dotenv from 'dotenv';
@@ -77,36 +74,6 @@ export const verifyCode = async (req, res, next) => {
     }
 };
 
-// thư mục lưu avatar
-const uploadDir = path.join(process.cwd(), "uploads", "avatars");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1e9) + ext;
-    cb(null, uniqueName);
-  },
-});
-
-export const uploadAvatar = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // tối đa 2MB
-  fileFilter: (req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-    if (!allowed.includes(file.mimetype)) {
-      return cb(new Error("Only .jpg, .jpeg, .png, .webp formats are allowed"));
-    }
-    cb(null, true);
-  },
-}).single("avatar"); // name phải trùng với formData.append("avatar", file)
-
-
 export const register = async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -133,12 +100,12 @@ export const register = async (req, res, next) => {
     if (![0,1,2,3,4,5].includes(Number(jlptLevel))) {
       throw new Error('jlptLevel must be a number between 0 and 5');
     }
-
-    // nếu có upload ảnh
-    let avatarPath = null;
+    
+    let avatarUrl = null;
     if (req.file) {
-      avatarPath = "/uploads/avatars/" + req.file.filename;
+      avatarUrl = req.file.path; // Cloudinary trả về URL trực tiếp
     }
+
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -149,7 +116,7 @@ export const register = async (req, res, next) => {
       dateOfBirth,
       jlptLevel,
       biography: biography || "",
-      avatar: avatarPath,
+      avatar: avatarUrl,
     };
 
     const user = new User({ email, password: hashedPassword, personalInformation });
@@ -204,9 +171,11 @@ export const login = async (req, res, next) => {
       { expiresIn: process.env.JWT_EXPIRES_IN }
     );
 
+    console.log(token);
+
     res.status(200).json({
       message: 'Login successful',
-      user,
+      avatar: user.personalInformation.avatar,
       token
     });
 
