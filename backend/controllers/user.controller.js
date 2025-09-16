@@ -1,4 +1,6 @@
 import User from '../models/user.model.js';
+import bcrypt from 'bcryptjs';
+
 
 //Chỉ admin mới được xem danh sách user nên gửi cả hashedPassword cũng được
 export const getUsers = async (req, res) => {
@@ -26,57 +28,154 @@ export const getUserById = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
-    const updates = req.body;
+    // start with request body (may come from multipart/form-data via multer)
+    const updates = { ...req.body };
 
-    if (updates.password) {
-      if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(updates.password)) {
-        throw new Error('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
-    }
-      const salt = await bcrypt.genSalt(10);
-      updates.password = await bcrypt.hash(updates.password, salt);
-    }
-
-    //If updates are dot notation (e.g., personalInformation.fullName), validate accordingly
-    if (updates['personalInformation.fullName'] && updates['personalInformation.fullName'].trim() === '') {
-        throw new Error('fullName is required and must be a non-empty string');
-    }
-    if (updates['personalInformation.gender'] && !['male','female','other'].includes(updates['personalInformation.gender'])) {
-        throw new Error('gender must be one of "male", "female", "other"');
-    }
-    if (updates['personalInformation.dateOfBirth'] && isNaN(new Date(updates['personalInformation.dateOfBirth']).getTime())) {
-        throw new Error('dateOfBirth must be a valid date');
-    }
-    if (updates['personalInformation.jlptLevel'] && ![0,1,2,3,4,5].includes(Number(updates['personalInformation.jlptLevel']))) {
-        throw new Error('jlptLevel must be a number between 0 and 5');
+    // If avatar was uploaded by multer/cloudinary, attach its path to personalInformation.avatar
+    if (req.file && req.file.path) {
+      // prefer dot-notation so findByIdAndUpdate can set the nested field
+      updates['personalInformation.avatar'] = req.file.path;
     }
 
-    // If updates are not dot notation
-    if (updates.personalInformation) {
-        const pi = updates.personalInformation;
+    function coerceBoolean(value, fieldName) {
+      if (value === 'true' || value === true || value === '1' || value === 1) return true;
+      if (value === 'false' || value === false || value === '0' || value === 0) return false;
 
-        if ('fullName' in pi && (pi['fullName'].trim() === '')) {
-            throw new Error('fullName is required and must be a non-empty string');
+      throw new Error(`Invalid value for ${fieldName}: ${value}`);
+    }
+
+    try {
+      if ('notificationPrefs.emailAnnouncements' in updates) {
+        updates['notificationPrefs.emailAnnouncements'] =
+          coerceBoolean(updates['notificationPrefs.emailAnnouncements'], 'notificationPrefs.emailAnnouncements');
+      }
+
+      if ('notificationPrefs.emailAssignments' in updates) {
+        updates['notificationPrefs.emailAssignments'] =
+          coerceBoolean(updates['notificationPrefs.emailAssignments'], 'notificationPrefs.emailAssignments');
+      }
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    try {
+      if (updates.notificationPrefs && typeof updates.notificationPrefs === 'object') {
+        const np = updates.notificationPrefs;
+
+        if ('emailAnnouncements' in np) {
+          np.emailAnnouncements = coerceBoolean(np.emailAnnouncements, 'notificationPrefs.emailAnnouncements');
         }
 
-        if ('gender' in pi && !['male','female','other'].includes(pi['gender'])) {
-            throw new Error('gender must be one of "male", "female", "other"');
+        if ('emailAssignments' in np) {
+          np.emailAssignments = coerceBoolean(np.emailAssignments, 'notificationPrefs.emailAssignments');
         }
 
-        if ('dateOfBirth' in pi && isNaN(new Date(pi['dateOfBirth']).getTime())) {
-            throw new Error('dateOfBirth must be a valid date');
-        }
-
-        if ('jlptLevel' in pi && ![0,1,2,3,4,5].includes(Number(pi['jlptLevel']))) {
-            throw new Error('jlptLevel must be a number between 0 and 5');
-        }
+        updates.notificationPrefs = np;
+      }
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true });
+
+
+    // if (updates.password) {
+    //   if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(updates.password)) {
+    //     throw new Error('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
+    // }
+    //   const salt = await bcrypt.genSalt(10);
+    //   updates.password = await bcrypt.hash(updates.password, salt);
+    // }
+
+// Utility: get value from updates (dot-notation or object)
+function getUpdateField(updates, path) {
+  const dotValue = updates[path];
+  if (dotValue !== undefined) return dotValue;
+
+  // Nếu path = "personalInformation.fullName"
+  const [root, key] = path.split('.');
+  if (updates[root] && typeof updates[root] === 'object') {
+    return updates[root][key];
+  }
+
+  return undefined;
+}
+
+// Utility: validate fields
+function validatePersonalInformation(updates) {
+  const fullName = getUpdateField(updates, 'personalInformation.fullName');
+  if (typeof fullName === 'string' && fullName.trim() === '') {
+    throw new Error('fullName is required and must be a non-empty string');
+  }
+
+  const gender = getUpdateField(updates, 'personalInformation.gender');
+  if (gender !== undefined && !['male', 'female', 'other'].includes(gender)) {
+    throw new Error('gender must be one of "male", "female", "other"');
+  }
+
+  const dob = getUpdateField(updates, 'personalInformation.dateOfBirth');
+  if (dob !== undefined && isNaN(new Date(dob).getTime())) {
+    throw new Error('dateOfBirth must be a valid date');
+  }
+
+  const jlpt = getUpdateField(updates, 'personalInformation.jlptLevel');
+  if (jlpt !== undefined && ![0, 1, 2, 3, 4, 5].includes(Number(jlpt))) {
+    throw new Error('jlptLevel must be a number between 0 and 5');
+  }
+}
+
+// Sử dụng:
+try {
+  validatePersonalInformation(updates);
+} catch (err) {
+  return res.status(400).json({ error: err.message });
+}
+
+    const user = await User.findByIdAndUpdate(req.params.id, updates, { new: true }).select('-password');
 
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json({ message: 'User updated successfully', user });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // For validation-like errors respond with 400
+    const msg = error && error.message ? String(error.message) : 'Unknown error';
+    if (/required|must|valid|invalid/i.test(msg)) {
+      return res.status(400).json({ error: msg });
+    }
+    res.status(500).json({ error: msg });
+  }
+};
+
+export const changePassword = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const { oldPassword, newPassword } = req.body;
+
+    console.log(userId);
+    console.log(oldPassword);
+    console.log(newPassword);
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ error: 'Old password and new password are required.' });
+    }
+
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newPassword)) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters and include uppercase, lowercase, and a number.' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const match = await bcrypt.compare(oldPassword, user.password);
+    if (!match) return res.status(401).json({ error: 'Old password is incorrect' });
+
+    const salt = await bcrypt.genSalt(10);
+    const hashed = await bcrypt.hash(newPassword, salt);
+
+    user.password = hashed;
+    await user.save();
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (err) {
+    next(err);
   }
 };
 

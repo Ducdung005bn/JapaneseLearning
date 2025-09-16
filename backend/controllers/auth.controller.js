@@ -85,7 +85,7 @@ export const register = async (req, res, next) => {
       throw new Error('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
     }
 
-    if (!fullName || fullName.trim() === '') {
+    if (fullName.trim() === '') {
       throw new Error('fullName is required and must be a non-empty string');
     }
 

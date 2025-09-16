@@ -2,6 +2,7 @@ import HomePg from "./pages/HomePg.jsx";
 import Vocabulary from "./pages/Vocabulary.jsx";
 import Kanji from "./pages/Kanji.jsx";
 import KanjiDetail from "./pages/KanjiDetail.jsx";
+import Information from "./pages/Information.jsx";
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SettingMenu, { getFontSizeClass } from "/src/components/Other/SettingMenu.jsx";
@@ -43,8 +44,8 @@ export default function App() {
   }, []);
 
 
+
   const handleSuccess = (data) => {
-    console.log("Message:", data);
     if (data.token) {
       localStorage.setItem("token", data.token);
       setToken(data.token);
@@ -72,7 +73,7 @@ export default function App() {
     { key: "Note", icon: NotebookText },
     { key: "Community", icon: Users },
     { key: "Function", icon: Wrench },
-    { key: "Information", icon: Info },
+    { key: "Information", icon: Info, path: "/information", element: <Information setting={setting} setAvatar={setAvatar}/> },
   ];
 
   const location = useLocation();
@@ -238,7 +239,7 @@ export default function App() {
             </AnimatePresence>
 
             {/* Content */}
-            <div className="max-w-6xl mx-auto">
+            <div className="w-full min-w-0">
               <Routes>
                 {PAGES.map(({ path, element }) => element && <Route key={path} path={path} element={element} />)}
                 <Route path="kanji/:character" element={<KanjiDetail setting={setting} />} />

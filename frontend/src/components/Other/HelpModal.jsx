@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { HelpCircle } from "lucide-react";
 import { getFontSizeClass } from "./SettingMenu.jsx";
 
@@ -30,7 +31,6 @@ export default function HelpModal({ title, setting }) {
 
   return (
     <>
-      {/* Biểu tượng dấu hỏi */}
       <button
         onClick={() => setIsOpen(true)}
         className="w-5 h-5 flex items-center justify-center rounded-full bg-blue-500 text-white hover:bg-blue-600"
@@ -39,32 +39,36 @@ export default function HelpModal({ title, setting }) {
         <HelpCircle size={24} />
       </button>
 
-      {/* Modal full-screen */}
-      {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50 p-4 rounded-2xl cursor-auto font-normal">
-          <div className="bg-white rounded-2xl shadow-lg w-full max-w-3xl h-full overflow-auto p-6 relative">
-            {/* Nút đóng */}
-            <button
-              onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 font-bold text-5xl"
-            >
-              ×
-            </button>
+      {isOpen &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-lg w-full max-w-3xl h-full overflow-auto p-6 relative">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="absolute top-1 right-3 text-gray-500 hover:text-gray-700 font-bold text-5xl"
+              >
+                ×
+              </button>
 
-            {/* Nội dung chính */}
-            <div className={`text-gray-800 ${getFontSizeClass(setting.fontSize, "medium")} mt-10 space-y-4`}>
-              <p>{content.text}</p>
-              {content.list && (
-                <ul className="list-disc list-inside space-y-2">
-                  {content.list.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              )}
+              <div
+                className={`text-gray-800 ${getFontSizeClass(
+                  setting.fontSize,
+                  "medium"
+                )} mt-10 space-y-4`}
+              >
+                <p>{content.text}</p>
+                {content.list && (
+                  <ul className="list-disc list-inside space-y-2">
+                    {content.list.map((item, idx) => (
+                      <li key={idx}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }

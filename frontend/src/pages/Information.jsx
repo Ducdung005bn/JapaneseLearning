@@ -1,0 +1,471 @@
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { Eye, EyeOff } from "lucide-react";
+import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
+
+export default function Information({ setting, setAvatar }) {
+  const token = localStorage.getItem("token");
+  const userId = token ? JSON.parse(atob(token.split(".")[1])).userId : null;
+
+  const [user, setUser] = useState(null);
+  const [originalUser, setOriginalUser] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // fetch user helper (used on mount and to refresh after errors)
+  const fetchUser = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setUser(res.data);
+    } catch (err) {
+      console.error('Failed to fetch user:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (token && userId) fetchUser();
+  }, [userId, token]);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    // keep local file and preview, upload on Save
+    setAvatarFile(file);
+    const url = URL.createObjectURL(file);
+    setAvatarPreview(url);
+  };
+
+  const handleUpdate = async () => {
+
+    try {
+      const formData = new FormData();
+
+      console.log(avatarFile);
+
+      // attach avatar when present
+      if (avatarFile) {
+        formData.append('avatar', avatarFile);
+      }
+
+      // attach personalInformation fields using dot-notation
+      const pi = user.personalInformation || {};
+      if ('fullName' in pi) formData.append('personalInformation.fullName', String(pi.fullName || ''));
+      if ('gender' in pi) formData.append('personalInformation.gender', String(pi.gender || ''));
+      if ('dateOfBirth' in pi) formData.append('personalInformation.dateOfBirth', String(pi.dateOfBirth));
+      if ('jlptLevel' in pi) formData.append('personalInformation.jlptLevel', String(pi.jlptLevel));
+      if ('biography' in pi) formData.append('personalInformation.biography', String(pi.biography || ''));
+
+      // notification prefs (booleans as strings)
+      const np = user.notificationPrefs || {};
+      if ('emailAnnouncements' in np) formData.append('notificationPrefs.emailAnnouncements', String(Boolean(np.emailAnnouncements)));
+      if ('emailAssignments' in np) formData.append('notificationPrefs.emailAssignments', String(Boolean(np.emailAssignments)));
+
+      const res = await axios.put(
+        `http://localhost:5000/user/${userId}`,
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Let axios set multipart Content-Type (boundary)
+          },
+        }
+      );
+
+      if (res.data) {
+        if (res.data.error) {
+          // show error in window and refresh form with exact server state
+          window.alert(res.data.error);
+          await fetchUser();
+          setAvatarFile(null);
+          if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+            setAvatarPreview(null);
+          }
+          // keep editing so user can adjust
+          setEditing(true);
+        } else if (res.data.message && res.data.user) {
+          setUser(res.data.user);
+          if (res.data.user?.personalInformation?.avatar) {
+            localStorage.setItem("avatar", res.data.user.personalInformation.avatar);
+            setAvatar(res.data.user.personalInformation.avatar);
+          }
+
+          setEditing(false);
+
+          // clear avatar temp
+          if (avatarPreview) {
+            URL.revokeObjectURL(avatarPreview);
+            setAvatarPreview(null);
+          }
+          setAvatarFile(null);
+        } else {
+          throw new Error('Unexpected server response');
+        }
+      } else {
+        throw new Error('No response data from server');
+      }
+    } catch (err) {
+      console.error('Update failed', err);
+      const errMsg = err?.response?.data?.error || err.message || 'Failed to update profile.';
+      // alert the user and refresh to server state
+      window.alert(errMsg);
+      await fetchUser();
+      setAvatarFile(null);
+      if (avatarPreview) {
+        URL.revokeObjectURL(avatarPreview);
+        setAvatarPreview(null);
+      }
+      setEditing(true);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this account?")) return;
+    try {
+      await axios.delete(`http://localhost:5000/user/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert("Account deleted.");
+      localStorage.removeItem("token");
+      window.location.href = "/";
+    } catch (err) {
+      alert("Failed to delete account.");
+    }
+  };
+
+  const handleChangePassword = async () => {
+    // client-side validation
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      window.alert('Please fill all password fields');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      window.alert('New password and confirmation do not match');
+      return;
+    }
+
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/user/change-password/${userId}`,
+        { oldPassword, newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      console.log(res);
+
+      if (res.data && res.data.message) {
+        window.alert(res.data.message);
+        setPasswordModal(false);
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else if (res.data && res.data.error) {
+        window.alert(res.data.error);
+      } else {
+        window.alert('Password change response unexpected');
+      }
+    } catch (err) {
+      const errMsg = err?.response?.data?.error || err.message || 'Failed to change password';
+      window.alert(errMsg);
+    }
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className="flex flex-col gap-y-3 w-full mx-auto min-w-0">
+      <section className="flex flex-col gap-3 w-full max-w-none p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg overflow-hidden">
+
+        {/* AVATAR */}
+        <div className="flex flex-col items-center">
+            <img
+                src={
+                avatarPreview ||
+                user.personalInformation.avatar ||
+                "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IndoaXRlIi8+PC9zdmc+" // ảnh trắng
+                }
+                alt="Avatar"
+                className="w-32 h-32 rounded-full object-cover border bg-white"
+            />
+          {editing && (
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleAvatarChange}
+              className="mt-2"
+            />
+          )}
+        </div>
+
+        {/* PERSONAL INFO */}
+        <div className="grid grid-cols-2 gap-4">
+          {/* FULL NAME */}
+          <div>
+            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={user.personalInformation.fullName}
+              readOnly={!editing}
+              onChange={(e) =>
+                setUser({
+                  ...user,
+                  personalInformation: { ...user.personalInformation, fullName: e.target.value },
+                })
+              }
+              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
+                setting.fontSize,
+                "medium"
+              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
+            />
+          </div>
+
+          {/* GENDER */}
+          <div>
+            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
+              Gender
+            </label>
+            <select
+              value={user.personalInformation.gender}
+              disabled={!editing}
+              onChange={(e) =>
+                setUser({
+                  ...user,
+                  personalInformation: { ...user.personalInformation, gender: e.target.value },
+                })
+              }
+              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
+                setting.fontSize,
+                "medium"
+              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
+            >
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          {/* DOB */}
+          <div>
+            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
+              Date of Birth
+            </label>
+            <input
+              type="date"
+              value={user.personalInformation.dateOfBirth.split("T")[0]}
+              disabled={!editing}
+              onChange={(e) =>
+                setUser({
+                  ...user,
+                  personalInformation: { ...user.personalInformation, dateOfBirth: e.target.value },
+                })
+              }
+              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
+                setting.fontSize,
+                "medium"
+              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
+            />
+          </div>
+
+          {/* JLPT */}
+          <div>
+            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
+              JLPT Level
+            </label>
+            <select
+              value={user.personalInformation.jlptLevel}
+              disabled={!editing}
+              onChange={(e) =>
+                setUser({
+                  ...user,
+                  personalInformation: {
+                    ...user.personalInformation,
+                    jlptLevel: Number(e.target.value),
+                  },
+                })
+              }
+              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
+                setting.fontSize,
+                "medium"
+              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
+            >
+              {[0, 5, 4, 3, 2, 1].map((lvl) => (
+                <option key={lvl} value={lvl}>
+                  {lvl}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* BIO */}
+          <div className="col-span-2">
+            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
+              Biography
+            </label>
+            <textarea
+              value={user.personalInformation.biography}
+              readOnly={!editing}
+              onChange={(e) =>
+                setUser({
+                  ...user,
+                  personalInformation: { ...user.personalInformation, biography: e.target.value },
+                })
+              }
+              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
+                setting.fontSize,
+                "medium"
+              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
+            />
+          </div>
+        </div>
+
+        {/* NOTIFICATION PREFS */}
+        <div className="mt-4">
+          <div className="flex flex-col gap-2">
+            {Object.keys(user.notificationPrefs).map((key) => (
+              <label key={key} className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={user.notificationPrefs[key]}
+                  disabled={!editing}
+                  onChange={(e) =>
+                    setUser({
+                      ...user,
+                      notificationPrefs: {
+                        ...user.notificationPrefs,
+                        [key]: e.target.checked,
+                      },
+                    })
+                  }
+                  className="w-5 h-5"
+                />
+                <span className={getFontSizeClass(setting.fontSize, "medium")}>
+                  {key === "emailAnnouncements"
+                  ? "Receive email notifications about platform announcements and updates"
+                  : "Receive email notifications about assignments or tasks"}
+
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* READ-ONLY FIELDS */}
+        <div className={`grid grid-cols-2 gap-4 mt-4 ${getFontSizeClass(setting.fontSize, "medium")}`}>
+          <div><b>Email:</b> {user.email}</div>
+          <div><b>ID:</b> {user._id}</div>
+          <div><b>Created:</b> {new Date(user.createdAt).toLocaleString()}</div>
+          <div><b>Updated:</b> {new Date(user.updatedAt).toLocaleString()}</div>
+        </div>
+
+        {/* ACTION BUTTONS */}
+        <div className={`flex gap-3 mt-4 ${getFontSizeClass(setting.fontSize, "medium")}`}>
+          {!editing ? (
+            <button
+              onClick={() => { setOriginalUser(JSON.parse(JSON.stringify(user))); setEditing(true); }}
+              className="bg-blue-500 text-white px-4 py-2 rounded-2xl"
+            >
+              Edit
+            </button>
+          ) : (
+            <button
+              onClick={handleUpdate}
+              className="bg-green-500 text-white px-4 py-2 rounded-2xl"
+            >
+              Save
+            </button>
+          )}
+          <button
+            onClick={() => setPasswordModal(true)}
+            className="bg-yellow-500 text-white px-4 py-2 rounded-2xl"
+          >
+            Change Password
+          </button>
+          <button
+            onClick={handleDelete}
+            className="bg-red-500 text-white px-4 py-2 rounded-2xl"
+          >
+            Delete Account
+          </button>
+        </div>
+
+      </section>
+
+      {/* PASSWORD MODAL */}
+      {passwordModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-2xl w-full max-w-md relative shadow-lg">
+            <button
+              onClick={() => setPasswordModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+            <h2 className={`text-xl font-bold mb-4 ${getFontSizeClass(setting.fontSize, "large")}`}>
+              Change Password
+            </h2>
+
+            {[{
+              label: "Old Password",
+              value: oldPassword,
+              setValue: setOldPassword,
+              show: showOld,
+              setShow: setShowOld
+            }, {
+              label: "New Password",
+              value: newPassword,
+              setValue: setNewPassword,
+              show: showNew,
+              setShow: setShowNew
+            }, {
+              label: "Confirm Password",
+              value: confirmPassword,
+              setValue: setConfirmPassword,
+              show: showConfirm,
+              setShow: setShowConfirm
+            }].map((field, i) => (
+              <div key={i} className="relative w-full mb-2">
+                <label className={`block mb-1 font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
+                  {field.label}
+                </label>
+                <input
+                  type={field.show ? "text" : "password"}
+                  value={field.value}
+                  onChange={(e) => field.setValue(e.target.value)}
+                  className={`w-full p-2 pr-10 border rounded-2xl ${getFontSizeClass(setting.fontSize, "medium")}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => field.setShow((s) => !s)}
+                  className="absolute inset-y-0 right-2 top-7 flex items-center text-gray-500 hover:text-gray-700"
+                >
+                  {field.show ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            ))}
+
+            <button
+              onClick={handleChangePassword}
+              className="w-full bg-green-500 text-white py-2 rounded-2xl"
+            >
+              Update Password
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
