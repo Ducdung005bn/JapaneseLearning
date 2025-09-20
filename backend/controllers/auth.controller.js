@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import Redis from 'ioredis';
 import jwt from 'jsonwebtoken';
 import { sendVerificationEmail } from '../utils/send-email.js';
+import admin from 'firebase-admin';
 
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.development.local' });
@@ -79,31 +80,19 @@ export const register = async (req, res, next) => {
   session.startTransaction();
 
   try {
-    const { email, password, fullName, gender, dateOfBirth, jlptLevel, biography } = req.body;
+    const { email, password, name, biography } = req.body;
 
     if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
       throw new Error('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
     }
 
-    if (fullName.trim() === '') {
-      throw new Error('fullName is required and must be a non-empty string');
-    }
-
-    if (!['male','female','other'].includes(gender)) {
-      throw new Error('gender must be one of "male", "female", "other"');
-    }
-
-    if (isNaN(new Date(dateOfBirth).getTime())) {
-      throw new Error('dateOfBirth must be a valid date');
-    }
-
-    if (![0,1,2,3,4,5].includes(Number(jlptLevel))) {
-      throw new Error('jlptLevel must be a number between 0 and 5');
+    if (name.trim() === '') {
+      throw new Error('Name is required and must be a non-empty string');
     }
     
-    let avatarUrl = null;
+    let pictureUrl = null;
     if (req.file) {
-      avatarUrl = req.file.path; // Cloudinary trả về URL trực tiếp
+      pictureUrl = req.file.path; // Cloudinary trả về URL trực tiếp
     }
 
 
@@ -111,12 +100,9 @@ export const register = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const personalInformation = {
-      fullName,
-      gender,
-      dateOfBirth,
-      jlptLevel,
+      name,
       biography: biography || "",
-      avatar: avatarUrl,
+      picture: pictureUrl,
     };
 
     const user = new User({ email, password: hashedPassword, personalInformation });
@@ -175,7 +161,7 @@ export const login = async (req, res, next) => {
 
     res.status(200).json({
       message: 'Login successful',
-      avatar: user.personalInformation.avatar,
+      picture: user.personalInformation.picture,
       token
     });
 
@@ -184,7 +170,83 @@ export const login = async (req, res, next) => {
   }
 };
 
+// Khởi tạo Firebase Admin (nên làm 1 lần trong app)
+if (!admin.apps.length) {
+  try {
+    const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY } = process.env;
+    if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY) {
+      console.warn('Firebase admin credentials not fully provided in environment variables. Skipping admin.initializeApp().');
+    } else {
+      const privateKey = FIREBASE_PRIVATE_KEY.includes('\\n') ? FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : FIREBASE_PRIVATE_KEY;
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: FIREBASE_PROJECT_ID,
+          clientEmail: FIREBASE_CLIENT_EMAIL,
+          privateKey,
+        }),
+      });
+    }
+  } catch (initErr) {
+    console.error('Failed to initialize Firebase admin:', initErr);
+  }
+}
 
-export const logout = async (req, res, next) => {
-    
+export const googleLogin = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Missing token' });
+
+    // Verify token từ Firebase
+    const decodedToken = await admin.auth().verifyIdToken(token);
+
+    const { uid, email, name, picture } = decodedToken;
+
+    // Kiểm tra user trong DB
+    let user = await User.findOne({ email });
+
+    // Nếu chưa có user thì tạo mới
+    if (!user) {
+      const personalInformation = {
+        name: name || "No Name",
+        picture: picture || null,
+        biography: ""
+      };
+
+      const password = Math.floor(100000 + Math.random() * 900000); // 6 chữ số
+
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password.toString(), salt);
+
+      user = new User({
+        email,
+        password: hashedPassword, // không có password vì login bằng Google
+        personalInformation,
+      });
+
+      await user.save();
+      console.log("Created new user:", user);
+    }
+
+    // Tạo JWT cho app
+    const appToken = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN }
+    );
+
+    res.status(200).json({
+      message: 'Login successful',
+      picture: user.personalInformation.picture,
+      token: appToken
+    });
+
+    console.log({
+      message: 'Login successful',
+      picture: user.personalInformation.picture,
+      token: appToken
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(401).json({ success: false, message: 'Invalid Google token' });
+  }
 };

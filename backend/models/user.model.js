@@ -13,12 +13,9 @@ const userSchema = new mongoose.Schema({
     trim: true,
   }, 
   personalInformation: {
-    fullName: { type: String, trim: true, required: true },
-    avatar: String,
+    name: { type: String, trim: true, required: true },
+    picture: String,
     biography: { type: String, trim: true, maxlength: 300 },
-    gender: { type: String, enum: ['male', 'female', 'other'],required: true },
-    dateOfBirth: { type: Date, required: true },
-    jlptLevel: { type: Number, enum: [1, 2, 3, 4, 5, 0], required: true },
     startDate: { type: Date, default: Date.now, required: true }
   },
   // tự học

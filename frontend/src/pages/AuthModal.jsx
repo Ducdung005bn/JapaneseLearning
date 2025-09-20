@@ -1,17 +1,15 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import axios from "axios";
+import FirebaseLogin from "../components/Other/FirebaseLogin";
 
-export default function AuthModal({ mode, onClose, onSuccess }) {
+export default function AuthModal({ mode, onClose, onSuccess, setToken, setPicture }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [gender, setGender] = useState("male");
-  const [dateOfBirth, setDateOfBirth] = useState("");
-  const [jlptLevel, setJlptLevel] = useState("0");
+  const [name, setName] = useState("");
 
   const [biography, setBiography] = useState("");
-  const [avatar, setAvatar] = useState(null);
+  const [registeredPicture, setRegisteredPicture] = useState(null);
 
 
   const [code, setCode] = useState("");
@@ -63,10 +61,7 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
 
     const missingFields = [];
     if (!password) missingFields.push("Password");
-    if (!fullName) missingFields.push("Full Name");
-    if (!gender) missingFields.push("Gender");
-    if (!dateOfBirth) missingFields.push("Date of Birth");
-    if (!jlptLevel) missingFields.push("JLPT Level");
+    if (!name) missingFields.push("Name");
 
     if (missingFields.length > 0) {
         setError("Please fill in: " + missingFields.join(", "));
@@ -78,12 +73,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         const formData = new FormData();
         formData.append("email", email);
         formData.append("password", password);
-        formData.append("fullName", fullName);
-        formData.append("gender", gender);
-        formData.append("dateOfBirth", dateOfBirth);
-        formData.append("jlptLevel", jlptLevel);
+        formData.append("name", name);
         formData.append("biography", biography);
-        formData.append("avatar", avatar); // file ảnh
+        formData.append("picture", registeredPicture); // file ảnh
 
         const res = await axios.post("http://localhost:5000/auth/register", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -221,69 +213,32 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
             </button>
             </div>
 
+{mode === "login" && (
+  <FirebaseLogin setToken={setToken} setPicture={setPicture} />
+)}
+
+
 
 {mode === "register" && step === 2 && (
   <div className="grid grid-cols-2 gap-4">
     <div className="col-span-2">
-      <label className="block mb-1 font-medium">Full Name *</label>
+      <label className="block mb-1 font-medium">Name *</label>
       <input
         type="text"
-        placeholder="Full Name"
-        value={fullName}
-        onChange={(e) => setFullName(e.target.value)}
+        placeholder="Name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
         required
         className="w-full p-2 border rounded-2xl"
       />
     </div>
 
     <div>
-      <label className="block mb-1 font-medium">Gender *</label>
-      <select
-        value={gender}
-        onChange={(e) => setGender(e.target.value)}
-        required
-        className="w-full p-2 border rounded-2xl"
-      >
-        <option value="male">Male</option>
-        <option value="female">Female</option>
-        <option value="other">Other</option>
-      </select>
-    </div>
-
-    <div>
-      <label className="block mb-1 font-medium">Date of Birth *</label>
-      <input
-        type="date"
-        value={dateOfBirth}
-        onChange={(e) => setDateOfBirth(e.target.value)}
-        required
-        className="w-full p-2 border rounded-2xl"
-      />
-    </div>
-
-    <div>
-      <label className="block mb-1 font-medium">JLPT Level *</label>
-      <select
-        onChange={(e) => setJlptLevel(Number(e.target.value))}
-        value={jlptLevel}
-        required
-        className="w-full p-2 border rounded-2xl"
-      >
-        <option value={0}>0</option>
-        <option value={5}>5</option>
-        <option value={4}>4</option>
-        <option value={3}>3</option>
-        <option value={2}>2</option>
-        <option value={1}>1</option>
-      </select>
-    </div>
-
-    <div>
-      <label className="block mb-1 font-medium">Avatar</label>
+      <label className="block mb-1 font-medium">Picture</label>
       <input
         type="file"
         accept="image/*"
-        onChange={(e) => setAvatar(e.target.files[0])}
+        onChange={(e) => setRegisteredPicture(e.target.files[0])}
         className="w-full p-2 border rounded-2xl"
       />
     </div>

@@ -3,7 +3,7 @@ import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
 
-export default function Information({ setting, setAvatar }) {
+export default function Information({ setting, setPicture }) {
   const token = localStorage.getItem("token");
   const userId = token ? JSON.parse(atob(token.split(".")[1])).userId : null;
 
@@ -11,8 +11,8 @@ export default function Information({ setting, setAvatar }) {
   const [originalUser, setOriginalUser] = useState(null);
   const [editing, setEditing] = useState(false);
   const [passwordModal, setPasswordModal] = useState(false);
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [pictureFile, setPictureFile] = useState(null);
+  const [picturePreview, setPicturePreview] = useState(null);
 
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -38,13 +38,13 @@ export default function Information({ setting, setAvatar }) {
     if (token && userId) fetchUser();
   }, [userId, token]);
 
-  const handleAvatarChange = (e) => {
+  const handlePictureChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     // keep local file and preview, upload on Save
-    setAvatarFile(file);
+    setPictureFile(file);
     const url = URL.createObjectURL(file);
-    setAvatarPreview(url);
+    setPicturePreview(url);
   };
 
   const handleUpdate = async () => {
@@ -52,19 +52,16 @@ export default function Information({ setting, setAvatar }) {
     try {
       const formData = new FormData();
 
-      console.log(avatarFile);
+      console.log(pictureFile);
 
-      // attach avatar when present
-      if (avatarFile) {
-        formData.append('avatar', avatarFile);
+      // attach picture when present
+      if (pictureFile) {
+        formData.append('picture', pictureFile);
       }
 
       // attach personalInformation fields using dot-notation
       const pi = user.personalInformation || {};
-      if ('fullName' in pi) formData.append('personalInformation.fullName', String(pi.fullName || ''));
-      if ('gender' in pi) formData.append('personalInformation.gender', String(pi.gender || ''));
-      if ('dateOfBirth' in pi) formData.append('personalInformation.dateOfBirth', String(pi.dateOfBirth));
-      if ('jlptLevel' in pi) formData.append('personalInformation.jlptLevel', String(pi.jlptLevel));
+      if ('name' in pi) formData.append('personalInformation.name', String(pi.name || ''));
       if ('biography' in pi) formData.append('personalInformation.biography', String(pi.biography || ''));
 
       // notification prefs (booleans as strings)
@@ -88,28 +85,28 @@ export default function Information({ setting, setAvatar }) {
           // show error in window and refresh form with exact server state
           window.alert(res.data.error);
           await fetchUser();
-          setAvatarFile(null);
-          if (avatarPreview) {
-            URL.revokeObjectURL(avatarPreview);
-            setAvatarPreview(null);
+          setPictureFile(null);
+          if (picturePreview) {
+            URL.revokeObjectURL(picturePreview);
+            setPicturePreview(null);
           }
           // keep editing so user can adjust
           setEditing(true);
         } else if (res.data.message && res.data.user) {
           setUser(res.data.user);
-          if (res.data.user?.personalInformation?.avatar) {
-            localStorage.setItem("avatar", res.data.user.personalInformation.avatar);
-            setAvatar(res.data.user.personalInformation.avatar);
+          if (res.data.user?.personalInformation?.picture) {
+            localStorage.setItem("picture", res.data.user.personalInformation.picture);
+            setPicture(res.data.user.personalInformation.picture);
           }
 
           setEditing(false);
 
-          // clear avatar temp
-          if (avatarPreview) {
-            URL.revokeObjectURL(avatarPreview);
-            setAvatarPreview(null);
+          // clear picture temp
+          if (picturePreview) {
+            URL.revokeObjectURL(picturePreview);
+            setPicturePreview(null);
           }
-          setAvatarFile(null);
+          setPictureFile(null);
         } else {
           throw new Error('Unexpected server response');
         }
@@ -122,10 +119,10 @@ export default function Information({ setting, setAvatar }) {
       // alert the user and refresh to server state
       window.alert(errMsg);
       await fetchUser();
-      setAvatarFile(null);
-      if (avatarPreview) {
-        URL.revokeObjectURL(avatarPreview);
-        setAvatarPreview(null);
+      setPictureFile(null);
+      if (picturePreview) {
+        URL.revokeObjectURL(picturePreview);
+        setPicturePreview(null);
       }
       setEditing(true);
     }
@@ -192,38 +189,38 @@ export default function Information({ setting, setAvatar }) {
         <div className="flex flex-col items-center">
             <img
                 src={
-                avatarPreview ||
-                user.personalInformation.avatar ||
+                picturePreview ||
+                user.personalInformation.picture ||
                 "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgdmlld0JveD0iMCAwIDEyOCAxMjgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEyOCIgaGVpZ2h0PSIxMjgiIGZpbGw9IndoaXRlIi8+PC9zdmc+" // ảnh trắng
                 }
-                alt="Avatar"
+                alt="Picture"
                 className="w-32 h-32 rounded-full object-cover border bg-white"
             />
           {editing && (
             <input
               type="file"
               accept="image/*"
-              onChange={handleAvatarChange}
+              onChange={handlePictureChange}
               className="mt-2"
             />
           )}
         </div>
 
         {/* PERSONAL INFO */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-4">
           {/* FULL NAME */}
           <div>
             <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
-              Full Name
+              Name
             </label>
             <input
               type="text"
-              value={user.personalInformation.fullName}
+              value={user.personalInformation.name}
               readOnly={!editing}
               onChange={(e) =>
                 setUser({
                   ...user,
-                  personalInformation: { ...user.personalInformation, fullName: e.target.value },
+                  personalInformation: { ...user.personalInformation, name: e.target.value },
                 })
               }
               className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
@@ -231,83 +228,6 @@ export default function Information({ setting, setAvatar }) {
                 "medium"
               )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
             />
-          </div>
-
-          {/* GENDER */}
-          <div>
-            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
-              Gender
-            </label>
-            <select
-              value={user.personalInformation.gender}
-              disabled={!editing}
-              onChange={(e) =>
-                setUser({
-                  ...user,
-                  personalInformation: { ...user.personalInformation, gender: e.target.value },
-                })
-              }
-              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
-                setting.fontSize,
-                "medium"
-              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
-            >
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-
-          {/* DOB */}
-          <div>
-            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
-              Date of Birth
-            </label>
-            <input
-              type="date"
-              value={user.personalInformation.dateOfBirth.split("T")[0]}
-              disabled={!editing}
-              onChange={(e) =>
-                setUser({
-                  ...user,
-                  personalInformation: { ...user.personalInformation, dateOfBirth: e.target.value },
-                })
-              }
-              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
-                setting.fontSize,
-                "medium"
-              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
-            />
-          </div>
-
-          {/* JLPT */}
-          <div>
-            <label className={`block font-medium ${getFontSizeClass(setting.fontSize, "medium")}`}>
-              JLPT Level
-            </label>
-            <select
-              value={user.personalInformation.jlptLevel}
-              disabled={!editing}
-              onChange={(e) =>
-                setUser({
-                  ...user,
-                  personalInformation: {
-                    ...user.personalInformation,
-                    jlptLevel: Number(e.target.value),
-                  },
-                })
-              }
-              className={`w-full p-2 border rounded-2xl ${getFontSizeClass(
-                setting.fontSize,
-                "medium"
-              )} ${!editing ? "bg-gray-100 cursor-not-allowed" : ""}`}
-            >
-              {[0, 5, 4, 3, 2, 1].map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {lvl}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* BIO */}

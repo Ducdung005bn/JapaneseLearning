@@ -6,7 +6,7 @@ import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
 
 export default function Vocabulary({ setting }) {
   const location = useLocation();
-  const navigate = useNavigate(); // 👈 THÊM
+  const navigate = useNavigate(); 
   const searchParams = new URLSearchParams(location.search);
   const meaning = searchParams.get("meaning");
   const writing = searchParams.get("writing");

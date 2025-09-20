@@ -13,7 +13,6 @@ export const getAllKanji = async (req, res) => {
 
 export const getKanjiDetail = async (req, res) => {
   try {
-    console.log("hello");
     const kanji = await Kanji.findOne({ kanji: req.params.character });
     if (!kanji) return res.status(404).json({ error: 'Kanji not found' });
 
@@ -91,7 +90,10 @@ function mapKanaPerMatchedKanji(vocabularyList, targetKanji) {
   const results = [];
 
   for (const vocab of vocabularyList) {
-    const matchedKanji = vocab.kanji.filter(k => k.text.includes(targetKanji));
+    const matchedKanji = vocab.kanji.filter(
+      k => k.common === true && k.text.includes(targetKanji)
+    );
+
     if (matchedKanji.length === 0) continue;
 
     // Khởi tạo map: matchedKanji -> Set (dùng Set để tránh trùng)
@@ -100,6 +102,7 @@ function mapKanaPerMatchedKanji(vocabularyList, targetKanji) {
 
     // Duyệt từng kana (chỉ xét kana.common)
     for (const kanaEntry of vocab.kana) {
+      if (!kanaEntry.common) continue;
 
       const reading = kanaEntry.text;
 
@@ -116,7 +119,8 @@ function mapKanaPerMatchedKanji(vocabularyList, targetKanji) {
     for (const [kanjiText, setOfReadings] of kanjiMap.entries()) {
       results.push({
         kanji: kanjiText,
-        readings: Array.from(setOfReadings)   // Convert Set to Array
+        readings: Array.from(setOfReadings),   // Convert Set to Array
+        _id: vocab._id
       });
     }
   }
@@ -205,15 +209,15 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
       for (const on of expandedOnForms) {
         if (r.includes(on)) {
           if (idx === 0 && r.startsWith(on)) {
-            on_words.push({ kanji: w.kanji, reading: r });
+            on_words.push({ _id: w._id, kanji: w.kanji, reading: r }); 
             classified = true;
             break;
           } else if (idx === w.kanji.length - 1 && r.endsWith(on)) {
-            on_words.push({ kanji: w.kanji, reading: r });
+            on_words.push({ _id: w._id, kanji: w.kanji, reading: r }); 
             classified = true;
             break;
           } else if (idx > 0 && idx < w.kanji.length - 1) { // targetKanji ở giữa
-            on_words.push({ kanji: w.kanji, reading: r });
+            on_words.push({ _id: w._id, kanji: w.kanji, reading: r }); 
             classified = true;
             break;
           }
@@ -247,7 +251,7 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
       // if (classified) continue;
 
       // 3. Nếu không thuộc on
-      kun_words.push({ kanji: w.kanji, reading: r });
+      kun_words.push({ _id: w._id, kanji: w.kanji, reading: r }); 
     }
   }
 

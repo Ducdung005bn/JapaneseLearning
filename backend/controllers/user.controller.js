@@ -31,10 +31,10 @@ export const updateUser = async (req, res) => {
     // start with request body (may come from multipart/form-data via multer)
     const updates = { ...req.body };
 
-    // If avatar was uploaded by multer/cloudinary, attach its path to personalInformation.avatar
+    // If picture was uploaded by multer/cloudinary, attach its path to personalInformation.picture
     if (req.file && req.file.path) {
       // prefer dot-notation so findByIdAndUpdate can set the nested field
-      updates['personalInformation.avatar'] = req.file.path;
+      updates['personalInformation.picture'] = req.file.path;
     }
 
     function coerceBoolean(value, fieldName) {
@@ -91,7 +91,7 @@ function getUpdateField(updates, path) {
   const dotValue = updates[path];
   if (dotValue !== undefined) return dotValue;
 
-  // Nếu path = "personalInformation.fullName"
+  // Nếu path = "personalInformation.name"
   const [root, key] = path.split('.');
   if (updates[root] && typeof updates[root] === 'object') {
     return updates[root][key];
@@ -100,32 +100,11 @@ function getUpdateField(updates, path) {
   return undefined;
 }
 
-// Utility: validate fields
-function validatePersonalInformation(updates) {
-  const fullName = getUpdateField(updates, 'personalInformation.fullName');
-  if (typeof fullName === 'string' && fullName.trim() === '') {
-    throw new Error('fullName is required and must be a non-empty string');
-  }
-
-  const gender = getUpdateField(updates, 'personalInformation.gender');
-  if (gender !== undefined && !['male', 'female', 'other'].includes(gender)) {
-    throw new Error('gender must be one of "male", "female", "other"');
-  }
-
-  const dob = getUpdateField(updates, 'personalInformation.dateOfBirth');
-  if (dob !== undefined && isNaN(new Date(dob).getTime())) {
-    throw new Error('dateOfBirth must be a valid date');
-  }
-
-  const jlpt = getUpdateField(updates, 'personalInformation.jlptLevel');
-  if (jlpt !== undefined && ![0, 1, 2, 3, 4, 5].includes(Number(jlpt))) {
-    throw new Error('jlptLevel must be a number between 0 and 5');
-  }
-}
-
-// Sử dụng:
 try {
-  validatePersonalInformation(updates);
+  const name = getUpdateField(updates, 'personalInformation.name');
+  if (typeof name === 'string' && name.trim() === '') {
+    throw new Error('Name is required and must be a non-empty string');
+  }
 } catch (err) {
   return res.status(400).json({ error: err.message });
 }

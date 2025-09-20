@@ -30,40 +30,38 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [authModal, setAuthModal] = useState(null); // "login" | "register" | null
   const [token, setToken] = useState(null);
-  const [avatar, setAvatar] = useState(null); 
+  const [picture, setPicture] = useState(null); 
 
   // Setting menu
   const [setting, setSetting] = useState({
     fontSize: "medium",
   });
 
-  // Lấy token và avatar từ localStorage khi load trang
+  // Lấy token và picture từ localStorage khi load trang
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
-    const savedAvatar = localStorage.getItem("avatar");
+    const savedPicture = localStorage.getItem("picture");
     if (savedToken) setToken(savedToken);
-    if (savedAvatar) setAvatar(savedAvatar);
+    if (savedPicture) setPicture(savedPicture);
   }, []);
-
-
 
   const handleSuccess = (data) => {
     if (data.token) {
       localStorage.setItem("token", data.token);
       setToken(data.token);
     }
-    if (data.avatar) {
-      localStorage.setItem("avatar", data.avatar);
-      setAvatar(data.avatar);
+    if (data.picture) {
+      localStorage.setItem("picture", data.picture);
+      setPicture(data.picture);
     }
     setAuthModal(null);
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("avatar");
+    localStorage.removeItem("picture");
     setToken(null);
-    setAvatar(null);
+    setPicture(null);
     window.location.reload(); 
   };
 
@@ -74,7 +72,7 @@ export default function App() {
     { key: "Kanji", icon: Languages, path: "/kanji", element: <Kanji setting={setting}/> },
     { key: "Lesson", icon: PenLine, path: "/lesson", element: <Lesson setting={setting}/> },
     { key: "Community", icon: Users },
-    { key: "Information", icon: Info, path: "/information", element: <Information setting={setting} setAvatar={setAvatar}/> },
+    { key: "Information", icon: Info, path: "/information", element: <Information setting={setting} setPicture={setPicture}/> },
   ];
 
   const location = useLocation();
@@ -136,10 +134,10 @@ export default function App() {
             className="h-10 w-10 rounded-full overflow-hidden border border-slate-300 bg-white"
             >
               
-              {avatar ? (
+              {picture ? (
                 <img
-                  src={avatar.startsWith("http") ? avatar : `http://localhost:5000${avatar}`}
-                  alt="Avatar"
+                  src={picture.startsWith("http") ? picture : `http://localhost:5000${picture}`}
+                  alt="Picture"
                   className="h-full w-full object-cover"
                 />
               ) : null}
@@ -261,6 +259,8 @@ export default function App() {
             mode={authModal}
             onClose={() => setAuthModal(null)}
             onSuccess={handleSuccess}
+            setToken={setToken}
+            setPicture={setPicture}
           />
         )}
       </div>

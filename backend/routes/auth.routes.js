@@ -1,17 +1,19 @@
 import express from 'express';
 import dotenv from 'dotenv'; dotenv.config({ path: '.env.development.local' });
 
-import * as authController from '../controllers/auth.controller.js';
-import { uploadAvatar } from '../config/cloudinarystorage.js';
+import { googleLogin, login, register, sendVerificationCode, verifyCode } from '../controllers/auth.controller.js';
+import { uploadPicture } from '../config/cloudinarystorage.js';
 
 const router = express.Router();
 
-router.post('/sendVerificationCode', authController.sendVerificationCode);
-router.post('/verifyCode', authController.verifyCode);
-router.post('/register', uploadAvatar, authController.register);
 
-router.post('/login', authController.login);
+router.post('/sendVerificationCode', sendVerificationCode);
+router.post('/verifyCode', verifyCode);
+router.post('/register', uploadPicture, register);
 
-router.post('/logout', authController.logout);
+router.post('/login', login);
+
+router.post('/google', googleLogin);
+
 
 export default router;

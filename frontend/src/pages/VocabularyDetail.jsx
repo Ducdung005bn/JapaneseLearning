@@ -6,11 +6,15 @@ import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
 import VocabularySearch from "../components/Vocabulary/VocabularySearch.jsx";
 import { Link, Ban } from "lucide-react"; 
 import Example from "../components/Vocabulary/Example.jsx";
+import { useNavigate } from "react-router-dom";
 
 export default function VocabularyDetail({ setting }) {
+  const navigate = useNavigate();
   const { id } = useParams();
   const [vocab, setVocab] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const isKanji = (ch) => /[\u3400-\u4DBF\u4E00-\u9FFF]/.test(ch);
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -50,61 +54,75 @@ export default function VocabularyDetail({ setting }) {
                 </span>            
             
 
-<section className="flex flex-wrap gap-x-20 gap-y-4">
-  {vocab.kanji.length > 0 ? (
-    // Có kanji -> render kanji + kana dưới
-    vocab.kanji.map((k, idx) => (
-      <div key={idx} className="flex flex-col items-center gap-1">
-        {/* Kanji */}
-        <span
-          className={`${getFontSizeClass(setting.fontSize, "large")} ${
-            k.common ? "font-bold text-black" : "text-slate-300"
-          }`}
-        >
-          {k.text}
-        </span>
+    <section className="flex flex-wrap gap-x-20 gap-y-4">
+      {vocab.kanji.length > 0 ? (
+        vocab.kanji.map((k, idx) => (
+          <div key={idx} className="flex flex-col items-center gap-1">
+            {/* Kanji: tách từng ký tự */}
+            <span className="flex">
+              {Array.from(k.text).map((ch, i) =>
+                isKanji(ch) ? (
+                  <span
+                    key={i}
+                    onClick={() => navigate(`/kanji/${ch}`)}
+                    className={`${getFontSizeClass(setting.fontSize, "large")} ${
+                      k.common ? "font-bold text-black" : "text-slate-300"
+                    } cursor-pointer hover:text-blue-500 transition`}
+                  >
+                    {ch}
+                  </span>
+                ) : (
+                  <span
+                    key={i}
+                    className={`${getFontSizeClass(setting.fontSize, "large")} ${
+                      k.common ? "font-bold text-black" : "text-slate-300"
+                    }`}
+                  >
+                    {ch}
+                  </span>
+                )
+              )}
+            </span>
 
-        {/* Kana áp dụng cho kanji này */}
-        {vocab.kana
-          .filter(
-            (kn) =>
-              kn.appliesToKanji.includes("*") ||
-              kn.appliesToKanji.includes(k.text)
-          )
-          .map((kn, i) => (
+            {/* Kana áp dụng cho kanji này */}
+            {vocab.kana
+              .filter(
+                (kn) =>
+                  kn.appliesToKanji.includes("*") ||
+                  kn.appliesToKanji.includes(k.text)
+              )
+              .map((kn, i) => (
+                <span
+                  key={i}
+                  className={`${getFontSizeClass(setting.fontSize, "medium")} ${
+                    k.common
+                      ? kn.common
+                        ? "text-emerald-600 font-semibold"
+                        : "text-slate-300"
+                      : "text-slate-300"
+                  }`}
+                >
+                  {kn.text}
+                </span>
+              ))}
+          </div>
+        ))
+      ) : (
+        <div className="flex flex-wrap gap-x-20">
+          {vocab.kana.map((kn, i) => (
             <span
               key={i}
-              className={`${getFontSizeClass(setting.fontSize, "medium")} ${
-                k.common
-                  ? kn.common
-                    ? "text-emerald-600 font-semibold"
-                    : "text-slate-300"
-                  : "text-slate-300"
+              className={`${getFontSizeClass(setting.fontSize, "large")} ${
+                kn.common ? "text-emerald-600 font-bold" : "text-slate-600"
               }`}
             >
               {kn.text}
             </span>
           ))}
-      </div>
-    ))
-  ) : (
-    // Không có kanji -> render danh sách kana
-    <div className="flex flex-wrap gap-x-20">
-      {vocab.kana.map((kn, i) => (
-        <span
-          key={i}
-          className={`${getFontSizeClass(setting.fontSize, "large")} ${
-            kn.common
-              ? "text-emerald-600 font-bold"
-              : "text-slate-600"
-          }`}
-        >
-          {kn.text}
-        </span>
-      ))}
-    </div>
-  )}
-</section>
+        </div>
+      )}
+    </section>
+
 
 {/* Section hiển thị nghĩa */}
 <section

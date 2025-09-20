@@ -13,10 +13,10 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary,
   params: {
-    folder: "avatars", // thư mục trên Cloudinary
+    folder: "pictures", // thư mục trên Cloudinary
     allowed_formats: ["jpg", "jpeg", "png", "webp"],
     transformation: [{ width: 300, height: 300, crop: "limit" }], // resize nếu cần
   },
 });
 
-export const uploadAvatar = multer({ storage }).single("avatar");
+export const uploadPicture = multer({ storage }).single("picture");
