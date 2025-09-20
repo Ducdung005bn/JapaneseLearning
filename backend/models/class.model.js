@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 import crypto from 'crypto';
 
 const classSchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
   code: { type: String, required: true, unique: true, uppercase: true },
+  name: { type: String, required: true, trim: true },
   description: { type: String, trim: true, maxlength: 300 },
   settings: {
     allowSelfJoin: { type: Boolean, default: false },
@@ -14,6 +14,7 @@ const classSchema = new mongoose.Schema({
     requestedAt: { type: Date, default: Date.now },
     message: String
   }],
+  lessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
   announcements: [{
     title: { type: String, required: true },
     content: { type: String, required: true },

@@ -194,7 +194,7 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
 
   const kun_words = [];
   const on_words = [];
-  const the_other_words = [];
+  // const the_other_words = [];
 
   for (const w of words) {
     for (const r of w.readings) {
@@ -221,37 +221,37 @@ function classifyWords(words, targetKanji, kun_readings, on_readings) {
       }
       if (classified) continue;
 
-      // 2. Kiểm tra Kun
-      for (const kun of expandedKunForms) {
-        if (!w.kanji.includes(kun.kanji)) 
-          continue;
+      // // 2. Kiểm tra Kun
+      // for (const kun of expandedKunForms) {
+      //   if (!w.kanji.includes(kun.kanji)) 
+      //     continue;
 
-        if (r.includes(kun.reading)) {
-          kun_words.push({ kanji: w.kanji, reading: r });
-          classified = true;
-          break;
-        }
+      //   if (r.includes(kun.reading)) {
+      //     kun_words.push({ kanji: w.kanji, reading: r });
+      //     classified = true;
+      //     break;
+      //   }
 
-        if (kun.reading.startsWith("-") && r.endsWith(kun.reading.slice(1))) {
-          kun_words.push({ kanji: w.kanji, reading: r });
-          classified = true;
-          break;
-        }
+      //   if (kun.reading.startsWith("-") && r.endsWith(kun.reading.slice(1))) {
+      //     kun_words.push({ kanji: w.kanji, reading: r });
+      //     classified = true;
+      //     break;
+      //   }
 
-        if (kun.reading.endsWith("-") && r.startsWith(kun.reading.slice(0, -1))) {
-          kun_words.push({ kanji: w.kanji, reading: r });
-          classified = true;
-          break;
-        }
-      }
-      if (classified) continue;
+      //   if (kun.reading.endsWith("-") && r.startsWith(kun.reading.slice(0, -1))) {
+      //     kun_words.push({ kanji: w.kanji, reading: r });
+      //     classified = true;
+      //     break;
+      //   }
+      // }
+      // if (classified) continue;
 
-      // 3. Nếu không thuộc on/kun
-      the_other_words.push({ kanji: w.kanji, reading: r });
+      // 3. Nếu không thuộc on
+      kun_words.push({ kanji: w.kanji, reading: r });
     }
   }
 
-  return { kun_words, on_words, the_other_words };
+  return { kun_words, on_words };
 }
 
 

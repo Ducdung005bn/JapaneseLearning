@@ -3,7 +3,7 @@ import wanakana from 'wanakana';
 
 export const getVocabularyDetail = async (req, res) => {
   try {
-    const vocabulary = await Vocabulary.findOne({ id: req.params.id });
+    const vocabulary = await Vocabulary.findOne({ _id: req.params.id });
     if (!vocabulary) {
       return res.status(404).json({ error: 'Vocabulary not found' });
     }
@@ -21,48 +21,64 @@ export const filterVocabulary = async (req, res) => {
     const { writing, meaning } = req.query;
     let filter = {};
 
-    // condition for writing (kanji OR kana)
     const orFilters = [];
 
     if (writing && String(writing).trim() !== '') {
-      const raw = String(writing).trim(); //for hira/kata/romaji
-      const safe = escapeRegex(raw); // for kanji
+      const raw = String(writing).trim();
+      const safe = escapeRegex(raw);
 
       const hira = wanakana.toHiragana(raw);
       const kata = wanakana.toKatakana(raw);
 
       orFilters.push({ 'kanji.text': { $regex: safe, $options: 'i' } });
-
       orFilters.push({ 'kana.text': { $regex: escapeRegex(hira), $options: 'i' } });
       orFilters.push({ 'kana.text': { $regex: escapeRegex(kata), $options: 'i' } });
     }
 
-    const meaningCond = (meaning && String(meaning).trim() !== '')
-      ? { 'sense.gloss.text': { $regex: escapeRegex(String(meaning).trim()), $options: 'i' } }
-      : null;
+    const meaningCond =
+      meaning && String(meaning).trim() !== ''
+        ? { 'sense.gloss.text': { $regex: escapeRegex(String(meaning).trim()), $options: 'i' } }
+        : null;
 
     if (orFilters.length > 0 && meaningCond) {
-      // both writing (kanji/kana) AND meaning must match
-      filter = {
-        $and: [
-          { $or: orFilters },
-          meaningCond
-        ]
-      };
+      filter = { $and: [{ $or: orFilters }, meaningCond] };
     } else if (orFilters.length > 0) {
-      // only writing
       filter = { $or: orFilters };
     } else if (meaningCond) {
-      // only meaning
       filter = meaningCond;
     } else {
       return res.status(400).json({ error: 'Please provide writing or meaning query' });
     }
 
-    const results = await Vocabulary.find(filter).limit(100);
+    let results = await Vocabulary.find(filter).lean(); // dùng lean() để có object thuần
 
     if (!results.length) {
       return res.status(404).json({ message: 'Result not found' });
+    }
+
+    // Lọc dữ liệu trước khi trả về
+    results = results
+      .map(v => {
+        const filteredKanji = (v.kanji || []).filter(k => k.common);
+        const filteredKana = (v.kana || []).filter(k => k.common);
+
+        const filteredSense = (v.sense || []).map(s => ({
+          ...s,
+          gloss: s.gloss.slice(0, 1) // chỉ giữ 1 nghĩa đầu tiên
+        }));
+
+        return {
+          ...v,
+          kanji: filteredKanji,
+          kana: filteredKana,
+          sense: filteredSense
+        };
+      })
+      // Chỉ giữ các mục còn ít nhất 1 kanji hoặc kana sau khi lọc
+      .filter(v => (v.kanji.length > 0 || v.kana.length > 0));
+
+    if (!results.length) {
+      return res.status(404).json({ message: 'No common vocabulary found' });
     }
 
     res.json(results);

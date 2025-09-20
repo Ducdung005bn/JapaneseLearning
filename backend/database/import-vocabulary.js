@@ -7,7 +7,7 @@ import path from 'path';
 export const importVocabulary = async () => {
   await connectDB();
 
-  const dataPath = path.resolve('../data/jmdict-eng-common-3.6.1.json');
+  const dataPath = path.resolve('../data/jmdict-with-examples.json');
   const data = JSON.parse(fs.readFileSync(dataPath, 'utf-8'));
 
   try {

@@ -47,6 +47,11 @@ const vocabularySchema = new Schema({
   kanji: { type: [kanjiFormSchema], default: [] },
   kana: { type: [kanaFormSchema], default: [] },
   sense: { type: [senseSchema], default: [] },
+  examples: [{
+    jp: { type: String, required: true },
+    furigana:  { type: String, required: true },
+    en: [String]
+  }]
 });
 
 vocabularySchema.index({ 'kanji.text': 1 });

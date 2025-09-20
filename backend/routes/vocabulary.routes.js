@@ -7,4 +7,6 @@ router.get('/filter', vocabularyController.filterVocabulary);
 
 router.get('/:id', vocabularyController.getVocabularyDetail);
 
+// router.get('/', vocabularyController.getAllVocabulary);
+
 export default router;
