@@ -213,10 +213,6 @@ export default function AuthModal({ mode, onClose, onSuccess, setToken, setPictu
             </button>
             </div>
 
-{mode === "login" && (
-  <FirebaseLogin setToken={setToken} setPicture={setPicture} />
-)}
-
 
 
 {mode === "register" && step === 2 && (
@@ -256,10 +252,14 @@ export default function AuthModal({ mode, onClose, onSuccess, setToken, setPictu
 )}
 
 
+
+
+
+
             <button
               onClick={mode === "login" ? handleLogin : handleRegister}
               disabled={loading}
-              className="w-full bg-green-500 text-white py-2 rounded-2xl"
+              className="mt-5 w-full bg-green-500 text-white py-2 rounded-2xl"
             >
               {mode === "login" ? "Login" : "Register"}
             </button>
@@ -271,6 +271,10 @@ export default function AuthModal({ mode, onClose, onSuccess, setToken, setPictu
         ) : (
         error && <p className="text-red-500 mt-2">{error}</p>
         )}
+
+{mode === "login" && (
+  <FirebaseLogin setToken={setToken} setPicture={setPicture} />
+)}
 
       </div>
 

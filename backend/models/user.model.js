@@ -19,12 +19,18 @@ const userSchema = new mongoose.Schema({
     startDate: { type: Date, default: Date.now, required: true }
   },
   // tự học
-  selfStudyLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson'}],
-  classes: [{
-    class: { type: mongoose.Schema.Types.ObjectId, ref: 'Class' },
-    role: { type: String, enum: ['teacher','student'], required: true }
+  lessons: [{
+    lessonId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson', required: true },
+    history: [{
+      startedAt: Date,
+      completedAt: Date,
+      assignment: [{
+        questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+        answer: mongoose.Schema.Types.Mixed // String, Array, Object tùy loại question
+      }],
+      score: Number
+    }]
   }],
-
 
   // tuỳ chọn: cài đặt thông báo
   notificationPrefs: {
@@ -37,4 +43,5 @@ const userSchema = new mongoose.Schema({
 
 userSchema.index({ email: 'text' });
 
-export default mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
+export default User;
