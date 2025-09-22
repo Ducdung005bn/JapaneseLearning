@@ -30,16 +30,40 @@ export const createLesson = async (req, res) => {
 export const getLessons = async (req, res) => {
   try {
     const { id } = req.params;
-    const user = await User.findById(id).populate("lessons.lessonId");
+    const user = await User.findById(id)
+      .populate({
+        path: "lessons.lessonId",
+        populate: [
+          { path: "questions" },
+          { 
+            path: "parentQuestions",
+            populate: { path: "questions" } // populate sâu vào parentQuestions.questions
+          }
+        ]
+      });
+
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const lessons = user.lessons.map(l => ({
-      _id: l.lessonId._id,
-      name: l.lessonId.name,
-      description: l.lessonId.description,
-      questionCount: l.lessonId.questions.length
-    }));
+    const lessons = user.lessons
+      .filter(l => l.lessonId) // chỉ lấy những lessonId tồn tại
+      .map(l => {
+        const qCount =
+          (l.lessonId.questions?.length || 0) +
+          (l.lessonId.parentQuestions?.reduce(
+            (sum, pq) => sum + (pq.questions?.length || 0),
+            0
+          ) || 0);
+
+        return {
+          _id: l.lessonId._id,
+          name: l.lessonId.name,
+          description: l.lessonId.description,
+          questionCount: qCount,
+        };
+      });
+
+
 
     res.json(lessons);
   } catch (error) {
@@ -48,7 +72,6 @@ export const getLessons = async (req, res) => {
   }
 };
 
-// Get single lesson with full data (questions, shuffleQuestions)
 export const getLessonById = async (req, res) => {
   try {
     const { lessonId, id } = req.params;
@@ -58,15 +81,71 @@ export const getLessonById = async (req, res) => {
     const hasLesson = user.lessons.some(l => l.lessonId.toString() === lessonId);
     if (!hasLesson) return res.status(403).json({ message: "Lesson not owned by this user" });
 
-    const lesson = await Lesson.findById(lessonId).populate("questions");
+    const lesson = await Lesson.findById(lessonId)
+      .populate("questions")
+      .populate({
+        path: "parentQuestions",
+        populate: {
+          path: "questions", // populate danh sách con
+        },
+      });
     if (!lesson) return res.status(404).json({ message: "Lesson not found" });
 
-    res.json(lesson);
+    // Clone để tránh mutate dữ liệu gốc trong DB
+    const lessonObj = lesson.toObject();
+
+    lessonObj.questions = lessonObj.questions.map(q => {
+      if (q.type === "multiple-choice") {
+        q.answers = shuffleArray(q.answers);
+      }
+      if (q.type === "match") {
+        // tạo mảng [{left, right}] để giữ mapping, rồi shuffle
+        const pairs = q.leftItems.map((left, i) => ({ left, right: q.rightItems[i] }));
+        const rightShuffled = shuffleArray(pairs.map(p => p.right));
+        q.shuffledRightItems = rightShuffled;
+        // giữ lại leftItems nguyên gốc
+      }
+      if (q.type === "drag-drop") {
+        const options = [...q.dragItems, ...q.distractors];
+        q.shuffledDragOptions = shuffleArray(options);
+      }
+      return q;
+    });
+
+    lessonObj.parentQuestions = lessonObj.parentQuestions.map(pq => {
+      pq.questions = pq.questions.map(q => {
+        if (q.type === "multiple-choice") {
+          q.answers = shuffleArray(q.answers);
+        }
+        if (q.type === "match") {
+          const pairs = q.leftItems.map((left, i) => ({ left, right: q.rightItems[i] }));
+          q.shuffledRightItems = shuffleArray(pairs.map(p => p.right));
+        }
+        if (q.type === "drag-drop") {
+          q.shuffledDragOptions = shuffleArray([...q.dragItems, ...q.distractors]);
+        }
+        return q;
+      });
+      return pq;
+    });
+
+
+    res.json(lessonObj);
   } catch (error) {
     console.error("getLessonById error:", error);
     res.status(500).json({ message: "Failed to fetch lesson" });
   }
 };
+
+export const shuffleArray = (array) => {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+};
+
 
 // Create parentQuestion (có thể chứa nhiều questions)
 export const createParentQuestion = async (req, res) => {
@@ -206,30 +285,49 @@ function validateQuestion({
     if (!Array.isArray(correctAnswers) || correctAnswers.length === 0) {
       return { valid: false, message: "correctAnswers is required for fill-in/flashcard." };
     }
+
+    if (correctAnswers.some(ans => !ans || ans.trim() === "")) {
+      return { valid: false, message: "correctAnswers cannot contain empty values." };
+    }
   }
+
 
   if (type === "multiple-choice") {
     if (!Array.isArray(answers) || answers.length === 0) {
       return { valid: false, message: "answers array is required for multiple-choice." };
     }
-    const hasValidAnswer = answers.every(a => a.answer && typeof a.isCorrect === "boolean");
+
+    const hasValidAnswer = answers.every(
+      a => typeof a.answer === "string" && a.answer.trim() !== "" && typeof a.isCorrect === "boolean"
+    );
     if (!hasValidAnswer) {
-      return { valid: false, message: "Each answer must have answer (string) and isCorrect (boolean)." };
+      return { valid: false, message: "Each answer must have a non-empty answer (string) and isCorrect (boolean)." };
     }
 
     const hasAtLeastOneCorrect = answers.some(a => a.isCorrect === true);
     if (!hasAtLeastOneCorrect) {
-        return { valid: false, message: "At least one answer must be marked as correct for multiple-choice." };
+      return { valid: false, message: "At least one answer must be marked as correct for multiple-choice." };
     }
   }
 
+
   if (type === "match") {
-    if (!Array.isArray(leftItems) || leftItems.length === 0 ||
-        !Array.isArray(rightItems) || rightItems.length === 0) {
+    if (
+      !Array.isArray(leftItems) || leftItems.length === 0 ||
+      !Array.isArray(rightItems) || rightItems.length === 0
+    ) {
       return { valid: false, message: "leftItems and rightItems are required for match question." };
     }
+
     if (leftItems.length !== rightItems.length) {
       return { valid: false, message: "leftItems and rightItems must have the same number of elements." };
+    }
+
+    // Check rỗng
+    const hasEmpty = leftItems.some(l => !l || l.trim() === "") ||
+                    rightItems.some(r => !r || r.trim() === "");
+    if (hasEmpty) {
+      return { valid: false, message: "leftItems and rightItems cannot contain empty values." };
     }
   }
 
@@ -237,6 +335,16 @@ function validateQuestion({
     if (!Array.isArray(dragItems) || dragItems.length === 0) {
       return { valid: false, message: "dragItems are required for drag-drop question." };
     }
+
+    // Check rỗng
+    if (dragItems.some(d => !d || d.trim() === "")) {
+      return { valid: false, message: "dragItems cannot contain empty values." };
+    }
+
+    if (distractors.some(d => !d || d.trim() === "")) {
+      return { valid: false, message: "Distractors cannot contain empty values." };
+    }
+
     const placeholders = (content.match(/\[drag-item\]/g) || []).length;
     if (placeholders !== dragItems.length) {
       return { 
@@ -245,6 +353,7 @@ function validateQuestion({
       };
     }
   }
+
 
   return null; // hợp lệ
 }

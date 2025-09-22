@@ -5,6 +5,7 @@ import Kanji from "./pages/Kanji.jsx";
 import KanjiDetail from "./pages/KanjiDetail.jsx";
 import Information from "./pages/Information.jsx";
 import Lesson from "./pages/Lesson.jsx";
+import LessonDetail from "./pages/LessonDetail.jsx";
 import { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import SettingMenu, { getFontSizeClass } from "/src/components/Other/SettingMenu.jsx";
@@ -243,6 +244,7 @@ export default function App() {
                 {PAGES.map(({ path, element }) => element && <Route key={path} path={path} element={element} />)}
                 <Route path="kanji/:character" element={<KanjiDetail setting={setting} />} />
                 <Route path="vocabulary/:id" element={<VocabularyDetail setting={setting} />} />
+                <Route path="lesson/:lessonId" element={<LessonDetail setting={setting} />} />
                 <Route path="*" element={<HomePg />} />
               </Routes>
             </div>

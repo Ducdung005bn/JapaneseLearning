@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { useLocation, useNavigate } from "react-router-dom"; // 👈 THÊM
+import { useLocation, useNavigate } from "react-router-dom"; 
 import VocabularySearch from "../components/Vocabulary/VocabularySearch.jsx";
 import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
+import LoadingIcon from "../components/Other/LoadingIcon.jsx";
 
 export default function Vocabulary({ setting }) {
   const location = useLocation();
@@ -44,10 +45,7 @@ export default function Vocabulary({ setting }) {
 
       <section className="w-full mx-auto flex flex-col gap-2">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className={`mt-2 text-emerald-600 ${getFontSizeClass(setting.fontSize, "medium")} font-semibold`}>Loading...</p>
-          </div>
+          <LoadingIcon setting={setting} />
         ) : vocabList.length === 0 ? (
           <p className={`${getFontSizeClass(setting.fontSize, "medium")} text-center text-slate-600 py-6`}>No results found</p>
         ) : (

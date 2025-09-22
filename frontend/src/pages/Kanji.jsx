@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useLocation } from "react-router-dom";
 import KanjiSearch from "../components/Kanji/KanjiSearch.jsx";
+import LoadingIcon from "../components/Other/LoadingIcon.jsx";
 import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
 
 export default function Kanji({ setting }) {
@@ -46,10 +47,7 @@ export default function Kanji({ setting }) {
 
       <section className="w-full mx-auto flex flex-col gap-2">
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className={`mt-2 text-emerald-600 ${getFontSizeClass(setting.fontSize, "medium")} font-semibold`}>Loading...</p>
-          </div>
+          <LoadingIcon setting={setting} />
         ) : kanjiList.length === 0 ? (
           <p className={`${getFontSizeClass(setting.fontSize, "medium")} text-center text-slate-600 py-6`}>No results found</p>
         ) : (
