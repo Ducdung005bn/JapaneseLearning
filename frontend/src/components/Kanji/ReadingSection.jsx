@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { getFontSizeClass } from "../Other/SettingMenu.jsx";
-import { useNavigate } from "react-router-dom"; // 👈 thêm import
+import { useNavigate } from "react-router-dom"; // thêm import
 
 export default function ReadingSection({
   title,
@@ -11,7 +11,7 @@ export default function ReadingSection({
   onToggle,
   setting
 }) {
-  const navigate = useNavigate(); // 👈 khởi tạo navigate
+  const navigate = useNavigate(); // khởi tạo navigate
 
   return (
     <div className="border p-2 rounded-lg bg-white shadow">

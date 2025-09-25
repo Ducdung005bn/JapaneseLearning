@@ -6,6 +6,7 @@ import vocabularyRoutes from './routes/vocabulary.routes.js';
 import kanjiRoutes from './routes/kanji.routes.js';
 import userRoutes from './routes/user.routes.js';
 import lessonRoutes from  './routes/lesson.routes.js';
+import quizRoutes from './routes/quiz.routes.js';
 import { connectDB } from './database/mongodb.js';
 import errorMiddleware from './middlewares/error.middleware.js';
 import {importKanji} from './database/import-kanji.js';
@@ -26,6 +27,8 @@ app.use('/vocabulary', vocabularyRoutes);
 app.use('/kanji', kanjiRoutes);
 app.use('/user', userRoutes);
 app.use('/lesson', lessonRoutes);
+app.use('/quiz', quizRoutes);
+
 
 
 app.use(errorMiddleware);

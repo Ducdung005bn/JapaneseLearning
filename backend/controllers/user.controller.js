@@ -16,7 +16,21 @@ export const getUsers = async (req, res) => {
 //Không lộ hashedPassword cho chính người dùng đó, nên dùng -password
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id)
+      .select('-password')
+      .populate({
+        path: 'lessons.lessonId',   // populate lesson info
+        model: 'Lesson',
+        populate: [
+          { path: 'questions', model: 'Question' },
+          { 
+            path: 'parentQuestions', 
+            model: 'ParentQuestion',
+            populate: { path: 'questions', model: 'Question' }
+          }
+        ]
+      });
+
     
     if (!user) return res.status(404).json({ message: 'User not found' });
 

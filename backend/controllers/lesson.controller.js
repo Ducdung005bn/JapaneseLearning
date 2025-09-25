@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import Lesson from "../models/lesson.model.js";
 import { Question, ParentQuestion } from "../models/question.model.js";
+import { shuffleQuestion } from "./quiz.controller.js";
 import mongoose from "mongoose";
 
 // Create a lesson for a specific user
@@ -94,40 +95,12 @@ export const getLessonById = async (req, res) => {
     // Clone để tránh mutate dữ liệu gốc trong DB
     const lessonObj = lesson.toObject();
 
-    lessonObj.questions = lessonObj.questions.map(q => {
-      if (q.type === "multiple-choice") {
-        q.answers = shuffleArray(q.answers);
-      }
-      if (q.type === "match") {
-        // tạo mảng [{left, right}] để giữ mapping, rồi shuffle
-        const pairs = q.leftItems.map((left, i) => ({ left, right: q.rightItems[i] }));
-        const rightShuffled = shuffleArray(pairs.map(p => p.right));
-        q.shuffledRightItems = rightShuffled;
-        // giữ lại leftItems nguyên gốc
-      }
-      if (q.type === "drag-drop") {
-        const options = [...q.dragItems, ...q.distractors];
-        q.shuffledDragOptions = shuffleArray(options);
-      }
-      return q;
-    });
+    lessonObj.questions = lessonObj.questions.map(q => shuffleQuestion(q));
 
-    lessonObj.parentQuestions = lessonObj.parentQuestions.map(pq => {
-      pq.questions = pq.questions.map(q => {
-        if (q.type === "multiple-choice") {
-          q.answers = shuffleArray(q.answers);
-        }
-        if (q.type === "match") {
-          const pairs = q.leftItems.map((left, i) => ({ left, right: q.rightItems[i] }));
-          q.shuffledRightItems = shuffleArray(pairs.map(p => p.right));
-        }
-        if (q.type === "drag-drop") {
-          q.shuffledDragOptions = shuffleArray([...q.dragItems, ...q.distractors]);
-        }
-        return q;
-      });
-      return pq;
-    });
+    lessonObj.parentQuestions = lessonObj.parentQuestions.map(pq => ({
+      ...pq,
+      questions: pq.questions.map(q => shuffleQuestion(q))
+    }));
 
 
     res.json(lessonObj);
@@ -136,16 +109,6 @@ export const getLessonById = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch lesson" });
   }
 };
-
-export const shuffleArray = (array) => {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-};
-
 
 // Create parentQuestion (có thể chứa nhiều questions)
 export const createParentQuestion = async (req, res) => {

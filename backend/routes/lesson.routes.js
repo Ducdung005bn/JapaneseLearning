@@ -2,6 +2,7 @@ import express from 'express';
 import { authorize, allowSelfOrAdmin } from '../middlewares/auth.middleware.js';
 import * as lessonController from '../controllers/lesson.controller.js';
 
+
 const router = express.Router();
 
 router.post('/:id', authorize, allowSelfOrAdmin, lessonController.createLesson);
@@ -25,7 +26,5 @@ router.delete('/:id/:lessonId/:parentQuestionId/:questionId', authorize, allowSe
 router.put('/:id/:lessonId/:parentQuestionId/:questionId', authorize, allowSelfOrAdmin, lessonController.updateQuestionInParentQuestion);
 
 router.patch('/:id/:lessonId/:parentQuestionId', authorize, allowSelfOrAdmin, lessonController.updateContentInParentQuestion);
-
-
 
 export default router;

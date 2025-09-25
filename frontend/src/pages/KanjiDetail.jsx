@@ -50,17 +50,9 @@ export default function KanjiDetail({ setting }) {
     <KanjiSearch setting={setting} />
     <div className="flex gap-3">
       <section className="flex flex-col gap-3 w-2/3 p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
-        <span className="flex gap-10">
-            <button
-                // onClick={() => setSelectedKanji(null)}
-                className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 max-w-[70px] rounded-lg bg-red-300 text-white hover:bg-red-600`}
-              >
-                Back
-            </button>
             <p className={`${getFontSizeClass(setting.fontSize, "large")}`}>
               <span className="font-bold">{kanji.kanji}</span>
             </p>
-        </span>
           
         <div className={`${getFontSizeClass(setting.fontSize, "medium")} flex flex-wrap gap-x-20 gap-y-1`}>
           {kanji.jlpt && (

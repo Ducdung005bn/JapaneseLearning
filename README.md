@@ -1,5 +1,8 @@
 # Japanese Learning App
 
+[![Watch the demo on YouTube]](https://www.youtube.com/watch?v=010FyFh8wEM)
+
+
 ## Features
 
 ### Kanji Search

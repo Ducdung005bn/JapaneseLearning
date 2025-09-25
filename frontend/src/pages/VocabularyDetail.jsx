@@ -4,15 +4,22 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import { getFontSizeClass } from "../components/Other/SettingMenu.jsx";
 import VocabularySearch from "../components/Vocabulary/VocabularySearch.jsx";
+import Conjugation from "../components/Vocabulary/Conjugation.jsx";
+import QuizModal from "../components/Vocabulary/QuizModal.jsx";
 import { Link, Ban } from "lucide-react"; 
 import Example from "../components/Vocabulary/Example.jsx";
 import { useNavigate } from "react-router-dom";
+
 
 export default function VocabularyDetail({ setting }) {
   const navigate = useNavigate();
   const { id } = useParams();
   const [vocab, setVocab] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [openConjugation, setOpenConjugation] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   const isKanji = (ch) => /[\u3400-\u4DBF\u4E00-\u9FFF]/.test(ch);
 
@@ -46,10 +53,13 @@ export default function VocabularyDetail({ setting }) {
             <section className="flex flex-col gap-3 w-full p-4 rounded-2xl bg-white/50 backdrop-blur-md shadow-lg">
                 <span className="flex gap-10">
                     <button
-                        // onClick={() => setSelectedKanji(null)}
-                        className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 max-w-[70px] rounded-lg bg-red-300 text-white hover:bg-red-600`}
+                        onClick={() => {
+                          setIsModalOpen(true);
+                        }}
+
+                        className={`${getFontSizeClass(setting.fontSize, "medium")} px-3 py-1 max-w-[250px] rounded-lg bg-red-300 text-white hover:bg-red-600`}
                     >
-                        Back
+                        Create Question
                     </button>
                 </span>            
             
@@ -282,6 +292,9 @@ export default function VocabularyDetail({ setting }) {
   ))}
 </section>
 
+<Conjugation conjugations={vocab.conjugations} setting={setting} openConjugation={openConjugation} setOpenConjugation={setOpenConjugation}/>
+
+
 <Example examples={vocab.examples} setting={setting} />
 
 
@@ -291,6 +304,12 @@ export default function VocabularyDetail({ setting }) {
 
             </section>
         </div>
+        <QuizModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        vocabularyId={id}
+        setting={{ fontSize: "medium" }}
+      />
     </div>
   );
 }

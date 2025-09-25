@@ -188,12 +188,12 @@
     ctx.strokeStyle = 'rgba(0,0,0,0.18)';
     for(const st of raw){ if(!st||st.length<2) continue; ctx.beginPath(); ctx.moveTo(st[0].x, st[0].y); for(let i=1;i<st.length;i++) ctx.lineTo(st[i].x, st[i].y); ctx.stroke(); }
 
-    // dp strokes (red dashed)
-    if(dpStrokes && dpStrokes.length){
-      ctx.setLineDash([6,6]); ctx.lineWidth = 2; ctx.strokeStyle = '#ef4444';
-      for(const st of dpStrokes){ if(!st||st.length<2) continue; ctx.beginPath(); const p0 = normToCanvas(st[0]); ctx.moveTo(p0.x,p0.y); for(let i=1;i<st.length;i++){ const p = normToCanvas(st[i]); ctx.lineTo(p.x,p.y); } ctx.stroke(); }
-      ctx.setLineDash([]);
-    }
+    // // dp strokes (red dashed)
+    // if(dpStrokes && dpStrokes.length){
+    //   ctx.setLineDash([6,6]); ctx.lineWidth = 2; ctx.strokeStyle = '#ef4444';
+    //   for(const st of dpStrokes){ if(!st||st.length<2) continue; ctx.beginPath(); const p0 = normToCanvas(st[0]); ctx.moveTo(p0.x,p0.y); for(let i=1;i<st.length;i++){ const p = normToCanvas(st[i]); ctx.lineTo(p.x,p.y); } ctx.stroke(); }
+    //   ctx.setLineDash([]);
+    // }
 
     // processed points (blue circles)
     ctx.fillStyle = '#1e40af';

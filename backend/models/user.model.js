@@ -25,12 +25,22 @@ const userSchema = new mongoose.Schema({
       startedAt: Date,
       completedAt: Date,
       assignment: [{
-        questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
-        answer: mongoose.Schema.Types.Mixed // String, Array, Object tùy loại question
-      }],
-      score: Number
+        parentQuestions: [{
+          parentQuestionId: { type: mongoose.Schema.Types.ObjectId, ref: 'ParentQuestion' },
+          questions: [{
+            questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+            answer: mongoose.Schema.Types.Mixed // lưu answer của user cho từng question
+          }]
+        }],
+        questions: [{
+          questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
+          answer: mongoose.Schema.Types.Mixed // lưu answer của user
+        }],
+        score: Number
+      }]
     }]
   }],
+
 
   // tuỳ chọn: cài đặt thông báo
   notificationPrefs: {

@@ -10,6 +10,7 @@
   "dependencies": {
     "@arcjet/inspect": "^1.0.0-beta.10",
     "@arcjet/node": "^1.0.0-beta.10",
+    "@surreptus/japanese-conjugator": "^0.5.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^1.37.0",
     "cookie-parser": "^1.4.7",
@@ -20,6 +21,7 @@
     "firebase-admin": "^13.5.0",
     "ioredis": "^5.7.0",
     "jsonwebtoken": "^9.0.2",
+    "mecab-lite": "^0.0.8",
     "mongodb": "^6.19.0",
     "mongoose": "^8.18.0",
     "multer": "^2.0.2",
