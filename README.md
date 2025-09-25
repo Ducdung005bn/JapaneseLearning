@@ -1,6 +1,6 @@
 # Japanese Learning App
 
-[![Watch the demo on YouTube]](https://www.youtube.com/watch?v=010FyFh8wEM)
+[Watch the demo on YouTube here](https://www.youtube.com/watch?v=010FyFh8wEM)
 
 
 ## Features
